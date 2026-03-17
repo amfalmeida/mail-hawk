@@ -1,0 +1,53 @@
+name: mail-hawk-java
+version: '1.0.0'
+slug: mail_hawk_java
+description: Monitor email for invoice attachments, parse QR codes and store in database (Java/Quarkus)
+url: https://github.com/amfalmeida/mail-hawk-java
+arch:
+  - aarch64
+  - amd64
+startup: services
+boot: auto
+map:
+  - share:rw
+options:
+  mail_imap_host: imap.gmail.com
+  mail_imap_port: "993"
+  mail_imap_username: ""
+  mail_imap_password: ""
+  mail_imap_folder: INBOX
+  mail_imap_days_older: "30"
+  mail_listener_subject_filter: (?i)(.*)(fatura|factura|extracto|recibo)(.*)
+  mail_listener_only_attachments: true
+  mail_listener_max_emails: 0
+  check_interval: "60"
+  spreadsheet_id: ""
+  spreadsheet_sheet: Bills values
+  spreadsheet_sheet_db: config
+  google_auth_encoded: ""
+  invoice_type_default: other
+  db_path: /share/mail_hawk_java/mail_hawk.db
+  pdf_passwords: ""
+schema:
+  mail_imap_host: str
+  mail_imap_port: str
+  mail_imap_username: str
+  mail_imap_password: password
+  mail_imap_folder: str
+  mail_imap_days_older: str
+  mail_listener_subject_filter: str
+  mail_listener_only_attachments: bool
+  mail_listener_max_emails: int
+  check_interval: str
+  spreadsheet_id: str
+  spreadsheet_sheet: str
+  spreadsheet_sheet_db: str
+  google_auth_encoded: password
+  invoice_type_default: str
+  db_path: str
+  pdf_passwords: password
+ingress: true
+ingress_port: 8080
+panel_icon: mdi:email
+panel_title: Mail Hawk Java
+panel_admin: true
