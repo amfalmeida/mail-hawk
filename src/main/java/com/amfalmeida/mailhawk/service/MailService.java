@@ -5,8 +5,7 @@ import com.amfalmeida.mailhawk.config.MailConfig;
 import com.amfalmeida.mailhawk.model.Invoice;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.mail.*;
-import jakarta.mail.search.ReceivedDateTerm;
-import jakarta.mail.search.ComparisonTerm;
+import jakarta.mail.search.SearchTerm;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.Getter;
@@ -19,7 +18,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.regex.Pattern;
 import jakarta.inject.Inject;
 
 @ApplicationScoped
@@ -41,20 +39,20 @@ public final class MailService {
             final String password = mailConfig.password();
             final String host = mailConfig.host();
             final int port = mailConfig.port();
-            
+
             log.info("Connecting to mail server: {}:{}", host, port);
-            
+
             final Properties props = System.getProperties();
             props.setProperty("mail.store.protocol", "imaps");
             props.setProperty("mail.imaps.host", host);
             props.setProperty("mail.imaps.port", String.valueOf(port));
             props.setProperty("mail.imaps.ssl.enable", "true");
             props.setProperty("mail.debug", String.valueOf(mailConfig.debug()));
-            
+
             session = Session.getInstance(props, null);
             store = session.getStore("imaps");
             store.connect(host, port, username, password);
-            
+
             log.info("Connected to {}:{}", host, port);
             return true;
         } catch (final AuthenticationFailedException e) {
@@ -100,17 +98,35 @@ public final class MailService {
             } else {
                 searchStartDate = LocalDate.now().minusDays(mailConfig.daysOlder());
             }
-            final Date searchDate = Date.from(searchStartDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
 
-            log.info("Searching emails - folder: {}, since: {}, max: {}, subjectFilter: {}", 
-                mailConfig.folder(), 
+            final List<String> subjectTerms = mailConfig.subjectTerms();
+
+            log.info("Searching emails - folder: {}, since: {}, max: {}, subjectTerms: {}",
+                mailConfig.folder(),
                 searchStartDate,
                 mailConfig.maxEmails() > 0 ? mailConfig.maxEmails() : "unlimited",
-                mailConfig.subjectFilter());
+                subjectTerms);
 
-            Message[] messages = folder.search(new ReceivedDateTerm(ComparisonTerm.GT, searchDate));
+            // Server-side: date filter
+            final SearchTerm searchTerm = SearchTermBuilder.buildDateFilter(searchStartDate);
+            Message[] messages = folder.search(searchTerm);
 
-            log.info("Found {} emails to check", messages.length);
+            log.info("Found {} emails from server", messages.length);
+
+            // Client-side: subject filter
+            if (subjectTerms != null && !subjectTerms.isEmpty()) {
+                final int beforeFilter = messages.length;
+                messages = Arrays.stream(messages)
+                    .filter(msg -> {
+                        try {
+                            return SearchTermBuilder.matchesSubject(msg.getSubject(), subjectTerms);
+                        } catch (MessagingException e) {
+                            return false;
+                        }
+                    })
+                    .toArray(Message[]::new);
+                log.info("Subject filter: {} -> {} emails", beforeFilter, messages.length);
+            }
 
             int maxEmails = mailConfig.maxEmails();
             if (maxEmails > 0 && messages.length > maxEmails) {
@@ -118,19 +134,10 @@ public final class MailService {
                 messages = Arrays.copyOf(messages, maxEmails);
             }
 
-            final Pattern subjectPattern = mailConfig.subjectFilter() != null && !mailConfig.subjectFilter().isEmpty()
-                ? Pattern.compile(mailConfig.subjectFilter())
-                : null;
-
             for (final Message msg : messages) {
                 try (MdcSetter ignored = new MdcSetter(UUID.randomUUID().toString())) {
                     final String messageId = getMessageId(msg);
                     if (processedMessageIds.contains(messageId)) {
-                        continue;
-                    }
-
-                    if (subjectPattern != null && !subjectMatches(msg, subjectPattern)) {
-                        log.debug("Skipping message: subject doesn't match filter");
                         continue;
                     }
 
@@ -168,12 +175,6 @@ public final class MailService {
         }
 
         return invoices;
-    }
-
-    private boolean subjectMatches(final Message msg, final Pattern pattern) throws MessagingException {
-        final String subject = msg.getSubject();
-        if (subject == null) return false;
-        return pattern.matcher(subject).find();
     }
 
     private boolean hasAttachments(final Message msg) throws IOException, MessagingException {

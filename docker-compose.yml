@@ -3,49 +3,20 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: mail-hawk-java:latest
+    image: mail-hawk:latest
     container_name: mail-hawk
     restart: unless-stopped
     ports:
       - "8080:8080"
     env_file:
       - .env
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    profiles:
-      - default
-    depends_on:
-      mariadb:
-        condition: service_healthy
-
-  mariadb:
-    image: mariadb:11
-    container_name: mail-hawk-mariadb
-    restart: unless-stopped
-    environment:
-      - MARIADB_ROOT_PASSWORD=root_secret
-      - MARIADB_DATABASE=${DB_NAME}
-      - MARIADB_USER=${DB_USER}
-      - MARIADB_PASSWORD=${DB_PASSWORD}
     volumes:
-      - mariadb-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
-      start_period: 10s
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - mail-hawk-data:/share/mail_hawk
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
-    profiles:
-      - mariadb
 
 volumes:
   mail-hawk-data:
-  mariadb-data:

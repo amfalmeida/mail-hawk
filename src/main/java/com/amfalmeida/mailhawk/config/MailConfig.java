@@ -3,6 +3,8 @@ package com.amfalmeida.mailhawk.config;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 
+import java.util.List;
+
 @ConfigMapping(prefix = "mail")
 public interface MailConfig {
     @WithDefault("imap.gmail.com")
@@ -23,8 +25,8 @@ public interface MailConfig {
     @WithDefault("30")
     int daysOlder();
 
-    @WithDefault("(?i)(.*)(fatura|factura|extracto|recibo)(.*)")
-    String subjectFilter();
+    @WithDefault("fatura,factura,extracto,recibo")
+    List<String> subjectTerms();
 
     @WithDefault("true")
     boolean onlyAttachments();

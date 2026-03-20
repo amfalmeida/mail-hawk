@@ -1,5 +1,5 @@
 name: "Mail Hawk"
-version: "1.0.0.13"
+version: "1.0.0.17"
 url: "https://github.com/amfalmeida/mail-hawk"
 slug: "mail_hawk"
 description: "Monitor email for invoice attachments, parse QR codes and store in database (Java/Quarkus)"
@@ -22,7 +22,7 @@ options:
   mail_imap_password: ""
   mail_imap_folder: "INBOX"
   mail_imap_days_older: "30"
-  mail_listener_subject_filter: "(?i)(.*)(fatura|factura|faturação|extracto|recibo|pagamento|talão)(.*)"
+  mail_subject_terms: "fatura,factura,extracto,recibo"
   mail_listener_only_attachments: true
   mail_listener_max_emails: 0
   pdf_passwords: ""
@@ -44,7 +44,7 @@ schema:
   mail_imap_password: password
   mail_imap_folder: str
   mail_imap_days_older: int
-  mail_listener_subject_filter: str
+  mail_subject_terms: str
   mail_listener_only_attachments: bool
   mail_listener_max_emails: int
   pdf_passwords: password

@@ -8,27 +8,6 @@ Monitor email for invoice attachments, parse QR codes and store data in Google S
 
 **Java 21 + Quarkus Implementation** - Optimized for performance and memory efficiency.
 
-## Architecture
-
-```mermaid
-graph TB
-    subgraph "Mail Hawk Java"
-        Email[Email Server<br/>IMAP] -->|Fetch emails| MH[Mail Hawk Java]
-        MH -->|Parse QR codes| DB[(SQLite DB)]
-        MH -->|Write invoices| Sheets[Google Sheets]
-        DB -->|Read data| HA[Home Assistant]
-    end
-    
-    subgraph "Home Assistant"
-        HA -->|SQL Sensor| Stats[Invoice Stats Sensor]
-    end
-    
-    style MH fill:#4285f4,color:#fff
-    style DB fill:#34a853,color:#fff
-    style HA fill:#ea4335,color:#fff
-    style Sheets fill:#fbbc05,color:#fff
-```
-
 ## Features
 
 - **Email Monitoring**: Monitors email via IMAP for invoice attachments
@@ -54,7 +33,7 @@ graph TB
 
 ### Prerequisites
 
-- Java 21+ ( JDK 21 or higher)
+- Java 21+ (JDK 21 or higher)
 - Docker (for containerized deployment)
 
 ### Build
@@ -74,18 +53,15 @@ graph TB
 
 ```bash
 # Set environment variables
-export MAIL_IMAP_USERNAME="your-email@gmail.com"
-export MAIL_IMAP_PASSWORD="your-app-password"
-export SPREADSHEET_ID="your-spreadsheet-id"
-export GOOGLE_AUTH_ENCODED="base64-encoded-credentials"
+export MAIL_HOST="imap.gmail.com"
+export MAIL_PORT="993"
+export MAIL_USERNAME="your-email@gmail.com"
+export MAIL_PASSWORD="your-app-password"
+export SHEETS_ID="your-spreadsheet-id"
+export SHEETS_ENCODED_CREDENTIALS="base64-encoded-credentials"
 
 # Run with Maven wrapper
 ./mvnw quarkus:dev
-
-# Or run the JAR directly
-java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 \
-     -XX:+UseStringDeduplication -XX:+UseCompressedOops \
-     -jar target/quarkus-app/quarkus-run.jar
 ```
 
 ## Makefile Commands
@@ -94,7 +70,7 @@ java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 \
 make help              # Show all available commands
 
 # Development
-make install           # Install dependencies and check prerequisites
+make install           # Install Java dependencies
 make build             # Build the project
 make run               # Run in development mode
 make test              # Run tests
@@ -105,50 +81,68 @@ make docker-build      # Build Docker image
 make docker-up         # Run Docker container
 make docker-logs       # View Docker logs
 make docker-down       # Stop Docker container
-make docker-clean      # Remove Docker image and containers
+make docker-clean      # Remove Docker image and volumes
 
 # Home Assistant Add-on
 make addon-build       # Build add-on image
 make addon-run         # Build and run add-on
 make addon-logs        # View add-on logs
 
-# Testing with Home Assistant
-make ha-up             # Start Home Assistant
-make ha-logs           # View HA logs
-make ha-down           # Stop Home Assistant
-make ha-clean          # Clean HA data
+# Setup
+make setup             # Create .env from .env.example
 ```
 
 ## Configuration
 
 ### Environment Variables
 
+#### Mail Configuration
+
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `MAIL_IMAP_HOST` | IMAP server host | `imap.gmail.com` |
-| `MAIL_IMAP_PORT` | IMAP server port | `993` |
-| `MAIL_IMAP_USERNAME` | Email username | - |
-| `MAIL_IMAP_PASSWORD` | Email password or app password | - |
-| `MAIL_IMAP_FOLDER` | Folder to watch | `INBOX` |
-| `MAIL_IMAP_DAYS_OLDER` | Days to look back | `30` |
-| `MAIL_LISTENER_SUBJECT_FILTER` | Subject regex filter | `(?i)(.*)(fatura\|factura\|extracto\|recibo)(.*)` |
-| `MAIL_LISTENER_ONLY_ATTACHMENTS` | Only process emails with attachments | `true` |
-| `MAIL_LISTENER_MAX_EMAILS` | Max emails per check (0 = unlimited) | `0` |
-| `SPREADSHEET_ID` | Google Sheets ID | - |
-| `SPREADSHEET_SHEET` | Sheet name | `Bills values` |
-| `SPREADSHEET_SHEET_DB` | Config sheet name | `config` |
-| `GOOGLE_AUTH_ENCODED` | Base64 encoded service account | - |
-| `INVOICE_TYPE_DEFAULT` | Default invoice type | `other` |
-| `DB_PATH` | SQLite database path | `/share/mail_hawk_java/mail_hawk.db` |
-| `CHECK_INTERVAL_SECONDS` | Check interval in seconds | `60` |
-| `PDF_PASSWORDS` | Comma-separated PDF passwords | - |
+| `MAIL_HOST` | IMAP server host | `imap.gmail.com` |
+| `MAIL_PORT` | IMAP server port | `993` |
+| `MAIL_USERNAME` | Email username | - |
+| `MAIL_PASSWORD` | Email password or app password | - |
+| `MAIL_FOLDER` | Folder to watch | `INBOX` |
+| `MAIL_DAYS_OLDER` | Days to look back | `30` |
+| `MAIL_SUBJECT_TERMS` | Comma-separated subject search terms | `fatura,factura,extracto,recibo` |
+| `MAIL_ONLY_ATTACHMENTS` | Only process emails with attachments | `true` |
+| `MAIL_MAX_EMAILS` | Max emails per check (0 = unlimited) | `0` |
+
+#### Google Sheets Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SHEETS_ID` | Google Sheets ID | - |
+| `SHEETS_SHEET_NAME` | Sheet name | `values` |
+| `SHEETS_CONFIG_SHEET` | Config sheet name | `config` |
+| `SHEETS_ENCODED_CREDENTIALS` | Base64 encoded service account | - |
+
+#### Application Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `APP_CHECK_INTERVAL` | Email check interval in seconds | `60` |
+| `APP_CONFIG_SYNC_INTERVAL` | Config sync interval in seconds | `300` |
+| `APP_DEFAULT_INVOICE_TYPE` | Default invoice type | `other` |
+
+### Docker
+
+```bash
+# Build
+make docker-build
+
+# Run
+make docker-up
+```
 
 ## Home Assistant Add-on
 
 ### Installation
 
 1. Add this repository to your Home Assistant supervisor
-2. Install the "Mail Hawk Java" add-on
+2. Install the "Mail Hawk" add-on
 3. Configure via the add-on UI
 4. Start the add-on
 
@@ -159,23 +153,21 @@ make ha-clean          # Clean HA data
 | `mail_imap_host` | IMAP server |
 | `mail_imap_username` | Email address |
 | `mail_imap_password` | App password |
+| `mail_subject_terms` | Comma-separated subject filter terms |
 | `spreadsheet_id` | Google Sheets ID |
 | `google_auth_encoded` | Base64 credentials |
 
-### Docker
+### Home Assistant SQL Sensor
 
-```bash
-# Build
-docker build -t mail-hawk-java .
+Create a sensor to query the SQLite database:
 
-# Run with environment
-docker run -d \
-  -e MAIL_IMAP_USERNAME="email@gmail.com" \
-  -e MAIL_IMAP_PASSWORD="app-password" \
-  -e SPREADSHEET_ID="sheet-id" \
-  -e GOOGLE_AUTH_ENCODED="base64-creds" \
-  -v mail-hawk-data:/share/mail_hawk_java \
-  mail-hawk-java
+```yaml
+sensor:
+  - name: "Invoices This Month"
+    platform: sql
+    db_url: "sqlite:////share/mail_hawk/mail_hawk.db"
+    query: "SELECT COUNT(*) as count FROM processed_invoices WHERE strftime('%Y-%m', invoice_date) = strftime('%Y-%m', 'now')"
+    column: "count"
 ```
 
 ## Google Sheets Setup
@@ -190,7 +182,7 @@ docker run -d \
 base64 -w0 credentials.json
 ```
 
-Set the result as `GOOGLE_AUTH_ENCODED`.
+Set the result as `SHEETS_ENCODED_CREDENTIALS`.
 
 ### Spreadsheet Columns
 
@@ -214,21 +206,7 @@ Set the result as `GOOGLE_AUTH_ENCODED`.
 | P | ATCUD |
 | Q | Taxable type |
 | R | Tax country region |
-| S | Taxable basis exempt of VAT |
-| T | Taxable basis of VAT at the reduced rate |
-| U | Total VAT at the reduced rate |
-| V | Taxable basis of VAT at the intermediate rate |
-| W | Total VAT at the intermediate rate |
-| X | Taxable basis of VAT at the standard rate |
-| Y | Total VAT at the standard rate |
-| Z | Hash |
-| AA | Certificate number |
-| AB | Invoice date (Month) |
-| AC | Invoice date (Year) |
-| AD | Raw |
-| AE | Invoice filename |
-| AF | Email Id |
-| AG | Email received date |
+| ... | (additional tax columns) |
 | AH | Email subject |
 | AI | Processed at |
 
@@ -239,26 +217,19 @@ mail-hawk-java/
 ├── pom.xml                    # Maven build config
 ├── Makefile                   # Build commands
 ├── Dockerfile                 # Docker image
-├── config.yaml               # HA add-on config
-├── run.sh                    # HA startup script
+├── docker-compose.yml         # Docker compose
+├── config.yaml               # Home Assistant add-on config
 ├── repository.yaml           # HA repository config
-├── src/main/
-│   ├── java/com/amfalmeida/mailhawk/
-│   │   ├── MailHawkApplication.java
-│   │   ├── config/           # Configuration interfaces
-│   │   ├── model/            # Data models
-│   │   └── service/          # Business services
-│   └── resources/
-│       └── application.properties
-└── .mvn/wrapper/              # Maven wrapper
+├── run.sh                    # Startup script
+├── src/main/java/com/amfalmeida/mailhawk/
+│   ├── config/                # Configuration interfaces
+│   ├── model/                 # Data models
+│   ├── service/               # Business services
+│   ├── db/                    # Database entities
+│   └── health/                # Health checks
+└── src/main/resources/
+    └── application.properties
 ```
-
-## Performance
-
-- **Low Memory**: Quarkus optimizes for containers with `-XX:MaxRAMPercentage=75.0`
-- **Fast Startup**: Quarkus provides fast startup times
-- **Efficient Scheduling**: Quarkus scheduler for periodic tasks
-- **Native Image Ready**: Can compile to native with GraalVM
 
 ## License
 

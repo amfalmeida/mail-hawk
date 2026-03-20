@@ -4,19 +4,23 @@ help:
 	@echo "Mail Hawk - Available commands:"
 	@echo ""
 	@echo "Development:"
-	@echo "  make install        Install dependencies"
+	@echo "  make install        Install Java dependencies"
 	@echo "  make build          Build the project"
-	@echo "  make run            Run in development mode (Quarkus dev)"
+	@echo "  make run            Run in development mode"
 	@echo "  make test           Run tests"
 	@echo "  make clean          Clean build artifacts"
 	@echo ""
 	@echo "Docker:"
 	@echo "  make docker-build   Build Docker image"
-	@echo "  make docker-up      Run container (default profile)"
-	@echo "  make docker-up-mariadb  Run with MariaDB"
+	@echo "  make docker-up      Run container"
 	@echo "  make docker-logs    View container logs"
 	@echo "  make docker-down    Stop containers"
 	@echo "  make docker-clean   Remove images and volumes"
+	@echo ""
+	@echo "Home Assistant Add-on:"
+	@echo "  make addon-build    Build add-on image"
+	@echo "  make addon-run      Build and run add-on"
+	@echo "  make addon-logs     View add-on logs"
 	@echo ""
 	@echo "Setup:"
 	@echo "  make setup          Create .env from .env.example"
@@ -55,13 +59,6 @@ docker-up:
 	fi
 	docker-compose up -d
 
-docker-up-mariadb:
-	@echo "Starting container with MariaDB..."
-	@if [ ! -f .env ]; then \
-		echo "Warning: .env file not found. Using defaults."; \
-	fi
-	docker-compose --profile mariadb up -d mariadb mail-hawk
-
 docker-logs:
 	docker-compose logs -f
 
@@ -71,8 +68,22 @@ docker-down:
 
 docker-clean: docker-down
 	@echo "Removing Docker image and volumes..."
-	docker rmi mail-hawk-java:latest 2>/dev/null || true
-	docker volume rm mail-hawk-data mail-hawk_mariadb-data 2>/dev/null || true
+	docker rmi mail-hawk:latest 2>/dev/null || true
+	docker volume rm mail-hawk-data 2>/dev/null || true
+
+addon-build:
+	@echo "Building Home Assistant add-on..."
+	docker build -t mail-hawk-ha .
+
+addon-run: addon-build
+	@echo "Running Home Assistant add-on..."
+	docker run -d --name mail-hawk-ha \
+		-v /share/mail_hawk:/share/mail_hawk \
+		-p 8080:8080 \
+		mail-hawk-ha
+
+addon-logs:
+	docker logs -f mail-hawk-ha
 
 setup:
 	@if [ ! -f .env ]; then \
