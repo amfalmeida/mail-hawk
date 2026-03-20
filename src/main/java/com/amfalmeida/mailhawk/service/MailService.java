@@ -33,7 +33,6 @@ public final class MailService {
 
     private Session session;
     @Getter private Store store;
-    private Folder folder;
     private final Set<String> processedMessageIds = Collections.synchronizedSet(new HashSet<>());
 
     public boolean connect() {
@@ -69,9 +68,6 @@ public final class MailService {
 
     public void disconnect() {
         try {
-            if (folder != null && folder.isOpen()) {
-                folder.close(false);
-            }
             if (store != null && store.isConnected()) {
                 store.close();
             }
@@ -93,6 +89,7 @@ public final class MailService {
         }
 
         final List<Invoice> invoices = new ArrayList<>();
+        Folder folder = null;
         try {
             folder = store.getFolder(mailConfig.folder());
             folder.open(Folder.READ_ONLY);
@@ -160,6 +157,14 @@ public final class MailService {
             }
         } catch (final Exception e) {
             log.error("Error checking emails", e);
+        } finally {
+            if (folder != null && folder.isOpen()) {
+                try {
+                    folder.close(false);
+                } catch (final Exception e) {
+                    log.error("Error closing folder", e);
+                }
+            }
         }
 
         return invoices;
