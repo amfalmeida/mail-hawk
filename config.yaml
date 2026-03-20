@@ -1,5 +1,5 @@
 name: "Mail Hawk"
-version: "1.0.0.12"
+version: "1.0.0.13"
 url: "https://github.com/amfalmeida/mail-hawk"
 slug: "mail_hawk"
 description: "Monitor email for invoice attachments, parse QR codes and store in database (Java/Quarkus)"

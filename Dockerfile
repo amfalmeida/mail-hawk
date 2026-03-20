@@ -13,7 +13,7 @@ RUN ./mvnw clean package -DskipTests
 
 FROM eclipse-temurin:21-jre-alpine
 
-RUN apk add --no-cache curl jq
+RUN apk add --no-cache curl jq bash
 
 WORKDIR /app
 
@@ -22,4 +22,4 @@ COPY run.sh ./
 
 EXPOSE 8080
 
-CMD ["sh", "run.sh"]
+CMD ["bash", "run.sh"]
