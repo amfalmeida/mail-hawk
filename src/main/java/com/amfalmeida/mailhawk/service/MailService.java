@@ -20,9 +20,9 @@ import java.util.*;
 import java.util.function.Consumer;
 import jakarta.inject.Inject;
 
+@Slf4j
 @ApplicationScoped
 @RequiredArgsConstructor(onConstructor_ = @Inject)
-@Slf4j
 public final class MailService {
 
     private static final Set<String> SUPPORTED_EXTENSIONS = Set.of("pdf", "jpg", "jpeg", "png", "bmp", "gif");

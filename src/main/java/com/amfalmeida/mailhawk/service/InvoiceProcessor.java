@@ -29,6 +29,7 @@ public final class InvoiceProcessor {
     private final QrCodeParser qrCodeParser;
     private final AppConfig appConfig;
     private final MailConfig mailConfig;
+    private final ActualBudgetService actualBudgetService;
 
     private LocalDateTime lastCheckedAt;
     private final AtomicInteger checkEmailsCount = new AtomicInteger(0);
@@ -136,6 +137,8 @@ void processInvoice(final Invoice invoice) {
                         qrCode.getSecondTaxable(),
                         qrCode.getThirdTaxable()
                     );
+
+                    actualBudgetService.importInvoices(List.of(invoice));
                 }
             }
         } finally {

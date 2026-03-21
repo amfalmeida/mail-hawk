@@ -47,6 +47,7 @@ clean:
 	@echo "Cleaning build artifacts..."
 	./mvnw clean
 	rm -rf target/
+	rm -rf share/mail_hawk/*
 
 docker-build:
 	@echo "Building Docker image..."

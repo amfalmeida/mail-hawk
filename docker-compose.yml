@@ -1,4 +1,5 @@
 services:
+  # Mail Hawk - Invoice processing service
   mail-hawk:
     build:
       context: .
@@ -12,11 +13,81 @@ services:
       - .env
     volumes:
       - mail-hawk-data:/share/mail_hawk
+    networks:
+      - mail-hawk-network
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+    depends_on:
+      - actual-http-api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/q/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Actual Budget HTTP API - REST API for Actual Budget
+  # Repository: https://github.com/amfalmeida/ha-actual-http-api
+  actual-http-api:
+    image: ghcr.io/amfalmeida/ha-actual-http-api:latest
+    container_name: actual-http-api
+    restart: unless-stopped
+    ports:
+      - "5007:5007"
+    environment:
+      - ACTUAL_BUDGET_URL=${ACTUAL_BUDGET_URL:-http://actual-budget:5006}
+      - ACTUAL_DATA_DIR=/data
+      - API_KEY=${ACTUAL_API_KEY:-your-api-key}
+    volumes:
+      - actual-http-data:/data
+    networks:
+      - mail-hawk-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      - actual-budget
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5007/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Actual Budget - Budgeting application
+  # Repository: https://github.com/actualbudget/actual
+  actual-budget:
+    image: actualbudget/actual-server:latest
+    container_name: actual-budget
+    restart: unless-stopped
+    ports:
+      - "5006:5006"
+    volumes:
+      - actual-budget-data:/data
+    networks:
+      - mail-hawk-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5006/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  mail-hawk-network:
+    driver: bridge
 
 volumes:
   mail-hawk-data:
+  actual-http-data:
+  actual-budget-data:
