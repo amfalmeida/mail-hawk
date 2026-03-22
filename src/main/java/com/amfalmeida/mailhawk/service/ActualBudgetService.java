@@ -29,10 +29,10 @@ public class ActualBudgetService {
 
     public boolean isEnabled() {
         return config.enabled() && 
-               config.url() != null && !config.url().isEmpty() &&
-               config.apiKey() != null && !config.apiKey().isEmpty() &&
-               config.budgetSyncId() != null && !config.budgetSyncId().isEmpty() &&
-               config.accountId() != null && !config.accountId().isEmpty();
+               config.url().isPresent() && !config.url().get().isEmpty() &&
+               config.apiKey().isPresent() && !config.apiKey().get().isEmpty() &&
+               config.budgetSyncId().isPresent() && !config.budgetSyncId().get().isEmpty() &&
+               config.accountId().isPresent() && !config.accountId().get().isEmpty();
     }
 
     public void importInvoices(List<Invoice> invoices) {
@@ -54,9 +54,9 @@ public class ActualBudgetService {
             TransactionImportRequest request = new TransactionImportRequest(transactions);
 
             client.importTransactions(
-                    config.budgetSyncId(),
-                    config.accountId(),
-                    config.apiKey(),
+                    config.budgetSyncId().get(),
+                    config.accountId().get(),
+                    config.apiKey().get(),
                     request
             );
 
@@ -89,7 +89,7 @@ public class ActualBudgetService {
         String importedId = invoiceContent != null ? invoiceContent.getAtcud() : null;
 
         return new TransactionDto(
-            config.accountId(),
+            config.accountId().get(),
             date,
             amount,
             payeeName,

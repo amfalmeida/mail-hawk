@@ -1,5 +1,7 @@
 package com.amfalmeida.mailhawk.config;
 
+import java.util.Optional;
+
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 
@@ -9,14 +11,14 @@ public interface ActualConfig {
     boolean enabled();
 
     @WithDefault("")
-    String url();
+    Optional<String> url();
 
     @WithDefault("")
-    String apiKey();
+    Optional<String> apiKey();
 
     @WithDefault("")
-    String budgetSyncId();
+    Optional<String> budgetSyncId();
 
     @WithDefault("")
-    String accountId();
+    Optional<String> accountId();
 }
