@@ -38,4 +38,7 @@ public interface MailConfig {
 
     @WithDefault("false")
     boolean debug();
+
+    @WithDefault("0")
+    long minAttachmentSize();
 }

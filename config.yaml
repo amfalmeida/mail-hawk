@@ -1,5 +1,5 @@
 name: "Mail Hawk"
-version: "2.0.0.4"
+version: "2.0.0.6"
 url: "https://github.com/amfalmeida/mail-hawk"
 slug: "mail_hawk"
 image: ghcr.io/amfalmeida/mail-hawk
@@ -26,6 +26,7 @@ options:
   mail_subject_terms: "fatura,factura,extracto,recibo"
   mail_listener_only_attachments: true
   mail_listener_max_emails: 0
+  mail_min_attachment_size: 0
   pdf_passwords: ""
   spreadsheet_id: ""
   spreadsheet_sheet: "values"
@@ -55,6 +56,7 @@ schema:
   mail_subject_terms: str
   mail_listener_only_attachments: bool
   mail_listener_max_emails: int
+  mail_min_attachment_size: int
   pdf_passwords: password
   spreadsheet_id: str
   spreadsheet_sheet: str

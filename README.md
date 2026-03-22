@@ -112,6 +112,7 @@ make setup             # Create .env from .env.example
 | `MAIL_SUBJECT_TERMS` | Comma-separated subject search terms | `fatura,factura,extracto,recibo` |
 | `MAIL_ONLY_ATTACHMENTS` | Only process emails with attachments | `true` |
 | `MAIL_MAX_EMAILS` | Max emails per check (0 = unlimited) | `0` |
+| `MAIL_MIN_ATTACHMENT_SIZE` | Min message size in bytes (0 = disabled) | `0` |
 
 #### Google Sheets Configuration
 

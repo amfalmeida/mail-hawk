@@ -1,8 +1,10 @@
 package com.amfalmeida.mailhawk.service;
 
+import jakarta.mail.search.AndTerm;
 import jakarta.mail.search.ComparisonTerm;
 import jakarta.mail.search.ReceivedDateTerm;
 import jakarta.mail.search.SearchTerm;
+import jakarta.mail.search.SizeTerm;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -18,6 +20,15 @@ public final class SearchTermBuilder {
             ComparisonTerm.GE,
             Date.from(searchDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
         );
+    }
+
+    public static SearchTerm buildDateAndSizeFilter(LocalDate searchDate, long minSize) {
+        SearchTerm dateTerm = buildDateFilter(searchDate);
+        if (minSize <= 0) {
+            return dateTerm;
+        }
+        SearchTerm sizeTerm = new SizeTerm(ComparisonTerm.GE, (int) minSize);
+        return new AndTerm(dateTerm, sizeTerm);
     }
 
     public static boolean matchesSubject(String subject, List<String> subjectTerms) {

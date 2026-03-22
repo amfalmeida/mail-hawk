@@ -101,17 +101,25 @@ public final class MailService {
 
             final List<String> subjectTerms = mailConfig.subjectTerms();
 
-            log.info("Searching emails - folder: {}, since: {}, max: {}, subjectTerms: {}",
+            log.info("Searching emails - folder: {}, since: {}, max: {}, subjectTerms: {}, minSize: {}",
                 mailConfig.folder(),
                 searchStartDate,
                 mailConfig.maxEmails() > 0 ? mailConfig.maxEmails() : "unlimited",
-                subjectTerms);
+                subjectTerms,
+                mailConfig.minAttachmentSize() > 0 ? mailConfig.minAttachmentSize() : "disabled");
 
-            // Server-side: date filter
-            final SearchTerm searchTerm = SearchTermBuilder.buildDateFilter(searchStartDate);
+            final SearchTerm searchTerm = SearchTermBuilder.buildDateAndSizeFilter(searchStartDate, mailConfig.minAttachmentSize());
             Message[] messages = folder.search(searchTerm);
 
             log.info("Found {} emails from server", messages.length);
+
+            if (messages.length > 0) {
+                final FetchProfile profile = new FetchProfile();
+                profile.add(FetchProfile.Item.ENVELOPE);
+                profile.add(FetchProfile.Item.CONTENT_INFO);
+                folder.fetch(messages, profile);
+                log.debug("Prefetched ENVELOPE and CONTENT_INFO for {} messages", messages.length);
+            }
 
             // Client-side: subject filter
             if (subjectTerms != null && !subjectTerms.isEmpty()) {

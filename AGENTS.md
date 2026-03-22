@@ -92,6 +92,24 @@ MAIL_SUBJECT_TERMS=fatura,factura,extracto,recibo
 1. Server-side: Date filter (ReceivedDateTerm)
 2. Client-side: Case-insensitive contains check for each term
 
+### Minimum Attachment Size
+
+Server-side filtering to skip small messages (likely without attachments):
+
+```properties
+# application.properties
+mail.min-attachment-size=10240
+
+# .env
+MAIL_MIN_ATTACHMENT_SIZE=10240
+```
+
+**How it works:**
+1. Server-side: SizeTerm filter combined with date filter (messages >= size)
+2. Set to 0 to disable (default)
+3. Client-side `hasAttachments()` check still runs as safety net
+4. Useful for IMAP servers that support SIZE search criterion
+
 ### PDF Passwords
 
 PDF passwords are configured as comma-separated values (parsed automatically by Quarkus):
@@ -204,7 +222,7 @@ docker-compose up -d
 1. **Lombok + Quarkus**: Use `@RequiredArgsConstructor(onConstructor_ = @Inject)` for constructor injection
 2. **ConfigMapping defaults**: All fields need `@WithDefault("")` or app fails without env vars
 3. **Panache entities**: Use `@Transactional` on **non-private** methods that modify data
-4. **IMAP search**: Only date filter works reliably on all servers; filter subjects in Java
+4. **IMAP search**: Date filter works reliably; size filter (`SizeTerm`) is available but may not work on all servers; filter subjects in Java
 5. **REST Client JSON**: Uses `JsonLoggingFilter` with Jackson ObjectMapper for proper serialization
 6. **InvoiceContent**: Previously named `QrCodeContent`, renamed to better reflect its purpose
 7. **Model naming**: Use `invoiceContent` variable name (not `qrCode` or `qr`)
