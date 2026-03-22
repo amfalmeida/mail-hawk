@@ -3,7 +3,7 @@ package com.amfalmeida.mailhawk.service;
 import com.amfalmeida.mailhawk.db.entity.InvoiceConfig;
 import com.amfalmeida.mailhawk.db.entity.ProcessedInvoice;
 import com.amfalmeida.mailhawk.model.InvoiceType;
-import com.amfalmeida.mailhawk.model.QrCodeContent.Taxable;
+import com.amfalmeida.mailhawk.model.InvoiceContent.Taxable;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;

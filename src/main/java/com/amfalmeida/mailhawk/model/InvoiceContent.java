@@ -1,13 +1,17 @@
 package com.amfalmeida.mailhawk.model;
 
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
-public final class QrCodeContent {
+@AllArgsConstructor
+@Builder
+public final class InvoiceContent {
     private String issuerTin;
     private String customerTin;
     private String customerCountry;

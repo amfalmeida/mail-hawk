@@ -2,7 +2,7 @@ package com.amfalmeida.mailhawk.service;
 
 import com.amfalmeida.mailhawk.model.Invoice;
 import com.amfalmeida.mailhawk.model.InvoiceType;
-import com.amfalmeida.mailhawk.model.QrCodeContent;
+import com.amfalmeida.mailhawk.model.InvoiceContent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -44,7 +44,7 @@ class InvoiceProcessorTest {
             final List<String> qrCodes = qrCodeParser.getQrCodes(pdfFile.getAbsolutePath(), List.of());
             assertFalse(qrCodes.isEmpty(), "PDF should contain at least one QR code");
 
-            final QrCodeContent qrContent = qrCodeParser.parseQrCodeString(qrCodes.get(0));
+            final InvoiceContent qrContent = qrCodeParser.parseQrCodeString(qrCodes.get(0));
 
             assertNotNull(qrContent, "QR code should be parseable");
             assertNotNull(qrContent.getIssuerTin(), "Should have issuer TIN");
@@ -63,7 +63,7 @@ class InvoiceProcessorTest {
                 new InvoiceType("invoice", "sender@company.com", "Sender", qrContent.getIssuerTin())
             );
 
-            assertEquals(qrContent, invoice.getQrCode());
+            assertEquals(qrContent, invoice.getInvoiceContent());
             assertEquals(pdfFile.getName(), invoice.getFilename());
         }
 
@@ -75,7 +75,7 @@ class InvoiceProcessorTest {
             final List<String> qrCodes = qrCodeParser.getQrCodes(pdfFile.getAbsolutePath(), List.of());
             assertFalse(qrCodes.isEmpty(), "Should find QR code in single page PDF");
 
-            final QrCodeContent content = qrCodeParser.parseQrCodeString(qrCodes.get(0));
+            final InvoiceContent content = qrCodeParser.parseQrCodeString(qrCodes.get(0));
 
             assertNotNull(content.getIssuerTin(), "Should extract issuer TIN");
             assertNotNull(content.getInvoiceId(), "Should extract invoice ID");
@@ -83,7 +83,7 @@ class InvoiceProcessorTest {
 
             final Invoice invoice = createInvoiceFromQr(content, pdfFile);
             assertNotNull(invoice);
-            assertEquals(content.getIssuerTin(), invoice.getQrCode().getIssuerTin());
+            assertEquals(content.getIssuerTin(), invoice.getInvoiceContent().getIssuerTin());
         }
 
         @Test
@@ -105,7 +105,7 @@ class InvoiceProcessorTest {
             final List<String> qrCodes = qrCodeParser.getQrCodes(imageFile.getAbsolutePath(), List.of());
             assertFalse(qrCodes.isEmpty(), "Should find QR code in image");
 
-            final QrCodeContent content = qrCodeParser.parseQrCodeString(qrCodes.get(0));
+            final InvoiceContent content = qrCodeParser.parseQrCodeString(qrCodes.get(0));
 
             assertNotNull(content.getIssuerTin(), "Should extract issuer TIN from image QR");
         }
@@ -113,7 +113,7 @@ class InvoiceProcessorTest {
 
     @Nested
     @DisplayName("QR Code Content Validation")
-    class QrCodeContentValidationTests {
+    class InvoiceContentValidationTests {
 
         @Test
         @DisplayName("Should parse Portuguese ATCUD format correctly")
@@ -121,7 +121,7 @@ class InvoiceProcessorTest {
             final String qrString = "A:507957129*B:123456789*C:PT*D:FT*E:N*F:20260315*G:FT 0123/45678*" +
                 "H:ABC-123*I1:PT*I7:23*I8:100.50*L:0*M:0*N:23.12*O:123.62*P:0*Q:hash*R:0001*S:Ref";
 
-            final QrCodeContent content = qrCodeParser.parseQrCodeString(qrString);
+            final InvoiceContent content = qrCodeParser.parseQrCodeString(qrString);
 
             assertEquals("507957129", content.getIssuerTin());
             assertEquals("123456789", content.getCustomerTin());
@@ -141,7 +141,7 @@ class InvoiceProcessorTest {
         @Test
         @DisplayName("Should create complete invoice from QR content")
         void shouldCreateCompleteInvoiceFromQrContent() {
-            final QrCodeContent content = createTestQrContent();
+            final InvoiceContent content = createTestQrContent();
 
             final Invoice invoice = new Invoice(
                 "msg-123",
@@ -160,9 +160,9 @@ class InvoiceProcessorTest {
             assertEquals("msg-123", invoice.getId());
             assertEquals("Fatura Teste", invoice.getSubject());
             assertEquals("vendor@company.pt", invoice.getFromAddress());
-            assertEquals(content, invoice.getQrCode());
-            assertEquals("507957129", invoice.getQrCode().getIssuerTin());
-            assertEquals(new BigDecimal("100.00"), invoice.getQrCode().getTotal());
+            assertEquals(content, invoice.getInvoiceContent());
+            assertEquals("507957129", invoice.getInvoiceContent().getIssuerTin());
+            assertEquals(new BigDecimal("100.00"), invoice.getInvoiceContent().getTotal());
         }
     }
 
@@ -180,7 +180,7 @@ class InvoiceProcessorTest {
             assertFalse(qrCodes.isEmpty(), "Should find QR code");
 
             // Step 2: Parse QR content
-            final QrCodeContent qrContent = qrCodeParser.parseQrCodeString(qrCodes.get(0));
+            final InvoiceContent qrContent = qrCodeParser.parseQrCodeString(qrCodes.get(0));
             assertNotNull(qrContent.getIssuerTin());
             assertNotNull(qrContent.getInvoiceId());
 
@@ -189,10 +189,10 @@ class InvoiceProcessorTest {
 
             // Step 4: Validate invoice
             assertNotNull(invoice.getId());
-            assertNotNull(invoice.getQrCode());
-            assertEquals(qrContent.getIssuerTin(), invoice.getQrCode().getIssuerTin());
-            assertEquals(qrContent.getInvoiceId(), invoice.getQrCode().getInvoiceId());
-            assertEquals(qrContent.getTotal(), invoice.getQrCode().getTotal());
+            assertNotNull(invoice.getInvoiceContent());
+            assertEquals(qrContent.getIssuerTin(), invoice.getInvoiceContent().getIssuerTin());
+            assertEquals(qrContent.getInvoiceId(), invoice.getInvoiceContent().getInvoiceId());
+            assertEquals(qrContent.getTotal(), invoice.getInvoiceContent().getTotal());
             assertNotNull(invoice.getFromAddress());
             assertNotNull(invoice.getFilename());
             assertNotNull(invoice.getFilePath());
@@ -205,7 +205,7 @@ class InvoiceProcessorTest {
             final String qrString = "A:123*B:456*C:PT*D:FT*E:N*F:20260315*G:INV-001*H:ATCUD*" +
                 "I1:PT*I7:23*I8:100*L:50*N:23*O:73*P:0*Q:hash*R:cert";
 
-            final QrCodeContent content = qrCodeParser.parseQrCodeString(qrString);
+            final InvoiceContent content = qrCodeParser.parseQrCodeString(qrString);
 
             assertNotNull(content.getFirstTaxable(), "Should have first taxable");
             assertEquals(new BigDecimal("23"), content.getFirstTaxable().basicsStandardRate());
@@ -221,7 +221,7 @@ class InvoiceProcessorTest {
             final String qrString = "A:507957129*B:*C:PT*D:FS*E:N*F:20260315*G:FS 001*H:ATCUD*" +
                 "I1:PT*I7:23*I8:50*J1:PT*J5:13*J6:100*L:0*N:34.50*O:150*P:0*Q:hash*R:cert";
 
-            final QrCodeContent content = qrCodeParser.parseQrCodeString(qrString);
+            final InvoiceContent content = qrCodeParser.parseQrCodeString(qrString);
 
             assertNotNull(content.getFirstTaxable());
             assertEquals(new BigDecimal("50"), content.getFirstTaxable().totalTaxesStandardRate());
@@ -234,8 +234,8 @@ class InvoiceProcessorTest {
         }
     }
 
-    private QrCodeContent createTestQrContent() {
-        final QrCodeContent content = new QrCodeContent();
+    private InvoiceContent createTestQrContent() {
+        final InvoiceContent content = new InvoiceContent();
         content.setIssuerTin("507957129");
         content.setCustomerTin("123456789");
         content.setCustomerCountry("PT");
@@ -255,7 +255,7 @@ class InvoiceProcessorTest {
         return content;
     }
 
-    private Invoice createInvoiceFromQr(final QrCodeContent qrContent, final File file) {
+    private Invoice createInvoiceFromQr(final InvoiceContent qrContent, final File file) {
         return new Invoice(
             "msg-" + System.currentTimeMillis(),
             "Invoice from " + qrContent.getIssuerTin(),

@@ -4,7 +4,7 @@ import com.amfalmeida.mailhawk.config.AppConfig;
 import com.amfalmeida.mailhawk.config.MailConfig;
 import com.amfalmeida.mailhawk.model.Invoice;
 import com.amfalmeida.mailhawk.model.InvoiceType;
-import com.amfalmeida.mailhawk.model.QrCodeContent;
+import com.amfalmeida.mailhawk.model.InvoiceContent;
 import com.amfalmeida.mailhawk.model.SheetsResult;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -75,7 +75,7 @@ void processInvoice(final Invoice invoice) {
         }
 
         try {
-            final List<String> pdfPasswords = getPdfPasswords();
+            final List<String> pdfPasswords = mailConfig.pdfPasswords();
 
             final List<String> qrCodes = qrCodeParser.getQrCodes(invoice.getFilePath(), pdfPasswords);
             log.debug("Found {} QR codes", qrCodes.size());
@@ -86,22 +86,22 @@ void processInvoice(final Invoice invoice) {
             }
 
             for (final String qrStr : qrCodes) {
-                final QrCodeContent qrCode = qrCodeParser.parseQrCodeString(qrStr);
-                if (qrCode == null || qrCode.getInvoiceId() == null || qrCode.getInvoiceId().isBlank()) {
+                final InvoiceContent invoiceContent = qrCodeParser.parseQrCodeString(qrStr);
+                if (invoiceContent == null || invoiceContent.getInvoiceId() == null || invoiceContent.getInvoiceId().isBlank()) {
                     log.warn("Invalid QR code: {}", qrStr.substring(0, Math.min(50, qrStr.length())));
                     continue;
                 }
 
-                log.debug("Parsed QR code: {}", qrCode);
+                log.debug("Parsed QR code: {}", invoiceContent);
 
-                if (databaseService.isInvoiceProcessedByRawQr(qrCode.getRaw())) {
-                    log.info("Invoice already processed: {}", qrCode.getInvoiceId());
+                if (databaseService.isInvoiceProcessedByRawQr(invoiceContent.getRaw())) {
+                    log.info("Invoice already processed: {}", invoiceContent.getInvoiceId());
                     continue;
                 }
 
-                invoice.setQrCode(qrCode);
+                invoice.setInvoiceContent(invoiceContent);
 
-                final InvoiceType invoiceType = determineInvoiceType(invoice, qrCode);
+                final InvoiceType invoiceType = determineInvoiceType(invoice, invoiceContent);
                 invoice.setInvoiceType(invoiceType);
 
                 final var result = sheetsService.addInvoice(invoice);
@@ -111,31 +111,31 @@ void processInvoice(final Invoice invoice) {
                     result.status() == SheetsResult.Status.ALREADY_EXISTS) {
                     
                     databaseService.markInvoiceProcessed(
-                        qrCode.getAtcud(),
-                        qrCode.getInvoiceId(),
-                        qrCode.getInvoiceDate(),
+                        invoiceContent.getAtcud(),
+                        invoiceContent.getInvoiceId(),
+                        invoiceContent.getInvoiceDate(),
                         invoiceType.name(),
-                        qrCode.getIssuerTin(),
-                        qrCode.getCustomerTin(),
-                        qrCode.getCustomerCountry(),
+                        invoiceContent.getIssuerTin(),
+                        invoiceContent.getCustomerTin(),
+                        invoiceContent.getCustomerCountry(),
                         invoiceType.type(),
-                        qrCode.getStatus(),
-                        qrCode.getTotal(),
-                        qrCode.getTotalTaxes(),
-                        qrCode.getNonTaxable(),
-                        qrCode.getStampDuty(),
-                        qrCode.getWithholdingTax(),
-                        qrCode.getHash(),
-                        qrCode.getCertificateNumber(),
-                        qrCode.getOtherInformation(),
-                        qrCode.getRaw(),
+                        invoiceContent.getStatus(),
+                        invoiceContent.getTotal(),
+                        invoiceContent.getTotalTaxes(),
+                        invoiceContent.getNonTaxable(),
+                        invoiceContent.getStampDuty(),
+                        invoiceContent.getWithholdingTax(),
+                        invoiceContent.getHash(),
+                        invoiceContent.getCertificateNumber(),
+                        invoiceContent.getOtherInformation(),
+                        invoiceContent.getRaw(),
                         invoice.getSubject(),
                         invoice.getFromAddress(),
                         invoice.getFromName(),
                         invoice.getToAddress(),
-                        qrCode.getFirstTaxable(),
-                        qrCode.getSecondTaxable(),
-                        qrCode.getThirdTaxable()
+                        invoiceContent.getFirstTaxable(),
+                        invoiceContent.getSecondTaxable(),
+                        invoiceContent.getThirdTaxable()
                     );
 
                     actualBudgetService.importInvoices(List.of(invoice));
@@ -146,8 +146,8 @@ void processInvoice(final Invoice invoice) {
         }
     }
 
-    private InvoiceType determineInvoiceType(final Invoice invoice, final QrCodeContent qrCode) {
-        String issuerTin = qrCode.getIssuerTin();
+    private InvoiceType determineInvoiceType(final Invoice invoice, final InvoiceContent invoiceContent) {
+        String issuerTin = invoiceContent.getIssuerTin();
         
         if (issuerTin != null && !issuerTin.isEmpty()) {
             final var config = sheetsService.getConfigurationByNif(issuerTin);
@@ -165,12 +165,6 @@ void processInvoice(final Invoice invoice) {
             invoice.getFromAddress(),
             issuerTin != null ? issuerTin : ""
         );
-    }
-
-    private List<String> getPdfPasswords() {
-        final String passwords = mailConfig.pdfPasswords();
-        if (passwords == null || passwords.isEmpty()) return List.of();
-        return Arrays.asList(passwords.split(","));
     }
 
     private void cleanupFile(final String filePath) {

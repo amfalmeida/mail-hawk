@@ -12,6 +12,7 @@ Monitor email for invoice attachments, parse QR codes and store data in Google S
 
 - **Email Monitoring**: Monitors email via IMAP for invoice attachments
 - **QR Code Parsing**: Parses QR codes from PDF and image files (Portuguese ATCUD format)
+- **Recurrent Bills**: Automatically creates invoices from recurring bills configured in Google Sheets
 - **Google Sheets Integration**: Stores invoice data in Google Spreadsheet
 - **Actual Budget Integration**: Automatically imports transactions to Actual Budget
 - **SQLite Database**: Local database for tracking processed invoices
@@ -117,9 +118,19 @@ make setup             # Create .env from .env.example
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `SHEETS_ID` | Google Sheets ID | - |
-| `SHEETS_SHEET_NAME` | Sheet name | `values` |
+| `SHEETS_SHEET_NAME` | Sheet name for invoices | `values` |
 | `SHEETS_CONFIG_SHEET` | Config sheet name | `config` |
+| `SHEETS_RECURRENT_SHEET` | Recurrent bills sheet name | `recurrent` |
 | `SHEETS_ENCODED_CREDENTIALS` | Base64 encoded service account | - |
+
+#### Application Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `APP_CHECK_INTERVAL` | Email check interval in seconds | `60` |
+| `APP_CONFIG_SYNC_INTERVAL` | Config sync interval in seconds | `300` |
+| `APP_DEFAULT_INVOICE_TYPE` | Default invoice type | `other` |
+| `APP_RECURRENT_CHECK_INTERVAL` | Recurrent bills check interval in seconds | `360` |
 
 #### Actual Budget Configuration
 
@@ -283,31 +294,85 @@ base64 -w0 credentials.json
 
 Set the result as `SHEETS_ENCODED_CREDENTIALS`.
 
-### Spreadsheet Columns
+### Google Sheets Structure
 
-| Column | Field |
-|--------|-------|
-| A | Type |
-| B | To email |
-| C | From email |
-| D | Entity |
-| E | Invoice Id |
-| F | Issuer NIF |
-| G | Customer NIF |
-| H | Invoice Date |
-| I | Invoice Total |
-| J | Country |
-| K | Invoice type |
-| L | Total non taxable |
-| M | Stamp duty |
-| N | Total Taxes |
-| O | Withholding tax |
-| P | ATCUD |
-| Q | Taxable type |
-| R | Tax country region |
-| ... | (additional tax columns) |
-| AH | Email subject |
-| AI | Processed at |
+The application uses three sheets in your Google Spreadsheet:
+
+#### 1. Invoices Sheet (default: "values")
+
+Stores processed invoice data from email attachments.
+
+| Column | Field | Description |
+|--------|-------|-------------|
+| A | Type | Invoice type (from config) |
+| B | To Email | Recipient email address |
+| C | From Email | Sender email address |
+| D | Entity | Entity name (from config) |
+| E | Invoice ID | Invoice number from QR code |
+| F | Issuer NIF | Issuer tax identification number |
+| G | Customer NIF | Customer tax identification number |
+| H | Invoice Date | Date from QR code (YYYY-MM-DD) |
+| I | Invoice Total | Total amount |
+| J | Country | Customer country code |
+| K | Invoice Type | Type code from QR code |
+| L | Total Non Taxable | Non-taxable amount |
+| M | Stamp Duty | Stamp duty amount |
+| N | Total Taxes | Sum of all taxes |
+| O | Withholding Tax | Withholding tax amount |
+| P | ATCUD | Unique document identifier |
+| Q | Tax Country Region | Tax region code |
+| R | Basics Exempt Taxes | Exempt tax base |
+| S | Basics Reduced Rate | Reduced rate base |
+| T | Total Taxes Reduced | Reduced rate tax amount |
+| U | Basics Intermediate Rate | Intermediate rate base |
+| V | Total Taxes Intermediate | Intermediate rate tax amount |
+| W | Basics Standard Rate | Standard rate base |
+| X | Total Taxes Standard | Standard rate tax amount |
+| Y | Hash | Document hash |
+| Z | Certificate Number | Certificate number |
+| AA | Other Information | Additional info |
+| AB | Month | Month extracted from date |
+| AC | Year | Year extracted from date |
+| AD | Raw QR | Raw QR code content |
+| AE | Filename | PDF attachment filename |
+| AF | ID | Internal invoice ID |
+| AG | Date | Processing date |
+| AH | Subject | Email subject |
+| AI | Processed At | Processing timestamp |
+
+#### 2. Config Sheet (default: "config")
+
+Maps email addresses/NIFs to entity information for invoice categorization.
+
+| Column | Field | Description |
+|--------|-------|-------------|
+| A | Type | Invoice type (e.g., "electricity", "water", "internet") |
+| B | From Email | Sender email address to match |
+| C | Name | Entity display name |
+| D | NIF | Tax identification number |
+
+#### 3. Recurrent Sheet (default: "recurrent")
+
+Defines recurring bills that are automatically processed on their payment day.
+
+| Column | Field | Description |
+|--------|-------|-------------|
+| A | Type | Invoice type |
+| B | Local | Local identifier |
+| C | Entity Email | Email address for the entity |
+| D | Entity Name | Display name |
+| E | NIF | Entity tax identification number |
+| F | Customer NIF | Customer tax identification number |
+| G | Value | Invoice amount |
+| H | Tax | Tax amount (ignored in processing) |
+| I | Payment Day | Day of month to create invoice (1-31) |
+| J | Until | End date (optional, empty = forever) |
+| K | Comments | Additional notes |
+
+**Processing behavior:**
+- On the configured payment day, an invoice is automatically created
+- Invoice ID format: `REC-{entityName}-{YYYY-MM}`
+- Stored in the same `processed_invoices` table as regular invoices
 
 ## Project Structure
 

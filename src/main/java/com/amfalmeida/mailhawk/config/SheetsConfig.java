@@ -14,6 +14,9 @@ public interface SheetsConfig {
     @WithDefault("config")
     String configSheet();
 
+    @WithDefault("recurrent")
+    String recurrentSheet();
+
     @WithDefault("")
     String encodedCredentials();
 }
