@@ -1,5 +1,5 @@
 name: "Mail Hawk"
-version: "2.0.0.6"
+version: "2.0.0.7"
 url: "https://github.com/amfalmeida/mail-hawk"
 slug: "mail_hawk"
 image: ghcr.io/amfalmeida/mail-hawk
