@@ -16,4 +16,7 @@ public interface AppConfig {
 
     @WithDefault("other")
     String defaultInvoiceType();
+
+    @WithDefault("360")
+    int recurrentCheckInterval();
 }

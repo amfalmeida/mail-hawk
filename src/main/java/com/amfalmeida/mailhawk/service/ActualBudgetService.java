@@ -67,12 +67,12 @@ public class ActualBudgetService {
     }
 
     private TransactionDto toTransactionDto(Invoice invoice) {
-        var qr = invoice.getQrCode();
+        var invoiceContent = invoice.getInvoiceContent();
         var invoiceType = invoice.getInvoiceType();
         
         String date;
-        if (qr != null && qr.getInvoiceDate() != null && !qr.getInvoiceDate().isEmpty()) {
-            date = qr.getInvoiceDate();
+        if (invoiceContent != null && invoiceContent.getInvoiceDate() != null && !invoiceContent.getInvoiceDate().isEmpty()) {
+            date = invoiceContent.getInvoiceDate();
         } else if (invoice.getDate() != null) {
             date = invoice.getDate().format(DateTimeFormatter.ISO_LOCAL_DATE);
         } else {
@@ -80,13 +80,13 @@ public class ActualBudgetService {
         }
         
         Integer amount = null;
-        if (qr != null && qr.getTotal() != null) {
-            amount = -qr.getTotal().multiply(BigDecimal.valueOf(100)).intValue();
+        if (invoiceContent != null && invoiceContent.getTotal() != null) {
+            amount = -invoiceContent.getTotal().multiply(BigDecimal.valueOf(100)).intValue();
         }
 
         String payeeName = invoiceType != null ? invoiceType.name() : null;
         String notes = invoice.getFilename();
-        String importedId = qr != null ? qr.getAtcud() : null;
+        String importedId = invoiceContent != null ? invoiceContent.getAtcud() : null;
 
         return new TransactionDto(
             config.accountId(),

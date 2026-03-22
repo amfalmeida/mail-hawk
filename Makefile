@@ -1,4 +1,4 @@
-.PHONY: help install build run test clean docker-build docker-up docker-down docker-clean
+.PHONY: help install build run test clean docker-build docker-up docker-down docker-clean addon-build addon-run addon-logs setup
 
 help:
 	@echo "Mail Hawk - Available commands:"
@@ -93,3 +93,4 @@ setup:
 	else \
 		echo ".env file already exists."; \
 	fi
+	

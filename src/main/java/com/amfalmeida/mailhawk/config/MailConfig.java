@@ -34,8 +34,7 @@ public interface MailConfig {
     @WithDefault("0")
     int maxEmails();
 
-    @WithDefault("")
-    String pdfPasswords();
+    List<String> pdfPasswords();
 
     @WithDefault("false")
     boolean debug();

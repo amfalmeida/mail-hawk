@@ -1,7 +1,8 @@
 name: "Mail Hawk"
-version: "2.0.0.0"
+version: "2.0.0.4"
 url: "https://github.com/amfalmeida/mail-hawk"
 slug: "mail_hawk"
+image: ghcr.io/amfalmeida/mail-hawk
 description: "Monitor email for invoice attachments, parse QR codes and store in database (Java/Quarkus)"
 arch:
   - aarch64
@@ -29,6 +30,7 @@ options:
   spreadsheet_id: ""
   spreadsheet_sheet: "values"
   spreadsheet_sheet_db: "config"
+  spreadsheet_sheet_recurrent: "recurrent"
   google_auth_encoded: ""
   invoice_type_default: "other"
   db_type: "sqlite"
@@ -37,6 +39,12 @@ options:
   db_password: ""
   check_interval: "60"
   config_sync_interval: "300"
+  recurrent_check_interval: "360"
+  actual_enabled: false
+  actual_url: ""
+  actual_api_key: ""
+  actual_budget_sync_id: ""
+  actual_account_id: ""
 schema:
   mail_imap_host: str
   mail_imap_port: str
@@ -51,6 +59,7 @@ schema:
   spreadsheet_id: str
   spreadsheet_sheet: str
   spreadsheet_sheet_db: str
+  spreadsheet_sheet_recurrent: str
   google_auth_encoded: password
   invoice_type_default: str
   db_type: str
@@ -59,6 +68,12 @@ schema:
   db_password: password
   check_interval: int
   config_sync_interval: int
+  recurrent_check_interval: int
+  actual_enabled: bool
+  actual_url: str
+  actual_api_key: password
+  actual_budget_sync_id: str
+  actual_account_id: str
 ingress: true
 ingress_port: 8080
 panel_icon: mdi:email

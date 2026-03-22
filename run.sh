@@ -30,10 +30,12 @@ export MAIL_MAX_EMAILS="$(get_config 'mail_listener_max_emails' 'MAIL_MAX_EMAILS
 export MAIL_PDF_PASSWORDS="$(get_config 'pdf_passwords' 'MAIL_PDF_PASSWORDS')"
 export APP_CHECK_INTERVAL="$(get_config 'check_interval' 'APP_CHECK_INTERVAL')"
 export APP_CONFIG_SYNC_INTERVAL="$(get_config 'config_sync_interval' 'APP_CONFIG_SYNC_INTERVAL')"
+export APP_RECURRENT_CHECK_INTERVAL="$(get_config 'recurrent_check_interval' 'APP_RECURRENT_CHECK_INTERVAL')"
 export APP_DEFAULT_INVOICE_TYPE="$(get_config 'invoice_type_default' 'APP_DEFAULT_INVOICE_TYPE')"
 export SHEETS_ID="$(get_config 'spreadsheet_id' 'SHEETS_ID')"
 export SHEETS_SHEET_NAME="$(get_config 'spreadsheet_sheet' 'SHEETS_SHEET_NAME')"
 export SHEETS_CONFIG_SHEET="$(get_config 'spreadsheet_sheet_db' 'SHEETS_CONFIG_SHEET')"
+export SHEETS_RECURRENT_SHEET="$(get_config 'spreadsheet_sheet_recurrent' 'SHEETS_RECURRENT_SHEET')"
 export SHEETS_ENCODED_CREDENTIALS="$(get_config 'google_auth_encoded' 'SHEETS_ENCODED_CREDENTIALS')"
 
 # Database Configuration
@@ -41,6 +43,13 @@ export DB_TYPE="$(get_config 'db_type' 'DB_TYPE')"
 export DB_URL="$(get_config 'db_url' 'DB_URL')"
 export DB_USERNAME="$(get_config 'db_username' 'DB_USERNAME')"
 export DB_PASSWORD="$(get_config 'db_password' 'DB_PASSWORD')"
+
+# Actual Budget Configuration
+export ACTUAL_ENABLED="$(get_config 'actual_enabled' 'ACTUAL_ENABLED')"
+export ACTUAL_URL="$(get_config 'actual_url' 'ACTUAL_URL')"
+export ACTUAL_API_KEY="$(get_config 'actual_api_key' 'ACTUAL_API_KEY')"
+export ACTUAL_BUDGET_SYNC_ID="$(get_config 'actual_budget_sync_id' 'ACTUAL_BUDGET_SYNC_ID')"
+export ACTUAL_ACCOUNT_ID="$(get_config 'actual_account_id' 'ACTUAL_ACCOUNT_ID')"
 
 # SQLite-specific: ensure directory exists
 if [ "$DB_TYPE" = "sqlite" ] || [ -z "$DB_TYPE" ]; then

@@ -1,7 +1,7 @@
 package com.amfalmeida.mailhawk.service;
 
-import com.amfalmeida.mailhawk.model.QrCodeContent;
-import com.amfalmeida.mailhawk.model.QrCodeContent.Taxable;
+import com.amfalmeida.mailhawk.model.InvoiceContent;
+import com.amfalmeida.mailhawk.model.InvoiceContent.Taxable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -32,7 +32,7 @@ class QrCodeParserTest {
         void shouldParseValidQrCodeString() {
             final String qrString = "A:123456789*B:987654321*C:PT*D:FT*E:N*F:20260306*G:FR 0/99999*H:99999*L:0*M:0*N:0*O:10.00*P:0*Q:abc123*R:1234*S:Test";
 
-            final QrCodeContent result = parser.parseQrCodeString(qrString);
+            final InvoiceContent result = parser.parseQrCodeString(qrString);
 
             assertNotNull(result);
             assertEquals("123456789", result.getIssuerTin());
@@ -59,7 +59,7 @@ class QrCodeParserTest {
         void shouldParseQrCodeWithTaxableFields() {
             final String qrString = "A:507957129*B:000000000*C:PT*D:FS*E:N*F:20260315*G:FR 0/1*H:ABC123*I1:PT*I2:0*I3:23*I4:0*I5:0*I6:0*I7:0*I8:0*L:0*M:0*N:0*O:100.00*P:0*Q:hash*R:cert*S:info";
 
-            final QrCodeContent result = parser.parseQrCodeString(qrString);
+            final InvoiceContent result = parser.parseQrCodeString(qrString);
 
             assertNotNull(result);
             assertEquals("507957129", result.getIssuerTin());
@@ -78,7 +78,7 @@ class QrCodeParserTest {
         void shouldParseQrCodeWithMultipleTaxableGroups() {
             final String qrString = "A:123*B:456*C:ES*D:FT*E:N*F:20260101*G:INV1*H:ATCUD*I1:PT*I2:10*I3:13*I4:100*I5:0*I6:0*I7:0*I8:0*J1:ES*J2:0*J3:0*J4:0*J5:21*J6:200*J7:0*J8:0*L:50*M:0*N:150*O:200*P:0*Q:hash*R:cert*S:info";
 
-            final QrCodeContent result = parser.parseQrCodeString(qrString);
+            final InvoiceContent result = parser.parseQrCodeString(qrString);
 
             assertNotNull(result);
             
@@ -101,7 +101,7 @@ class QrCodeParserTest {
         void shouldHandleInvalidQrCodeString() {
             final String qrString = "invalid qr code without proper format";
 
-            final QrCodeContent result = parser.parseQrCodeString(qrString);
+            final InvoiceContent result = parser.parseQrCodeString(qrString);
 
             assertNotNull(result);
             assertNull(result.getIssuerTin());
@@ -114,7 +114,7 @@ class QrCodeParserTest {
         void shouldParsePartialQrCodeString() {
             final String qrString = "A:123456789*F:20260306*G:INV001";
 
-            final QrCodeContent result = parser.parseQrCodeString(qrString);
+            final InvoiceContent result = parser.parseQrCodeString(qrString);
 
             assertNotNull(result);
             assertEquals("123456789", result.getIssuerTin());
@@ -125,7 +125,7 @@ class QrCodeParserTest {
         @Test
         @DisplayName("Should handle empty QR code string")
         void shouldHandleEmptyQrCodeString() {
-            final QrCodeContent result = parser.parseQrCodeString("");
+            final InvoiceContent result = parser.parseQrCodeString("");
 
             assertNotNull(result);
             assertNull(result.getIssuerTin());
@@ -137,7 +137,7 @@ class QrCodeParserTest {
         void shouldParseDateWithDashes() {
             final String qrString = "F:2026-03-15";
 
-            final QrCodeContent result = parser.parseQrCodeString(qrString);
+            final InvoiceContent result = parser.parseQrCodeString(qrString);
 
             assertEquals("2026-03-15", result.getInvoiceDate());
         }
@@ -147,7 +147,7 @@ class QrCodeParserTest {
         void shouldParseDecimalAmountsWithComma() {
             final String qrString = "O:10,50*N:2,30";
 
-            final QrCodeContent result = parser.parseQrCodeString(qrString);
+            final InvoiceContent result = parser.parseQrCodeString(qrString);
 
             assertEquals(new BigDecimal("10.50"), result.getTotal());
             assertEquals(new BigDecimal("2.30"), result.getTotalTaxes());
@@ -158,7 +158,7 @@ class QrCodeParserTest {
         void shouldReturnNullForMissingAmounts() {
             final String qrString = "A:123456789";
 
-            final QrCodeContent result = parser.parseQrCodeString(qrString);
+            final InvoiceContent result = parser.parseQrCodeString(qrString);
 
             assertNull(result.getTotal());
             assertNull(result.getTotalTaxes());
@@ -196,7 +196,7 @@ class QrCodeParserTest {
             assertNotNull(qrCodes);
             assertFalse(qrCodes.isEmpty(), "Expected at least one QR code in PDF");
             
-            final QrCodeContent parsed = parser.parseQrCodeString(qrCodes.get(0));
+            final InvoiceContent parsed = parser.parseQrCodeString(qrCodes.get(0));
             assertNotNull(parsed);
             assertNotNull(parsed.getIssuerTin());
         }
@@ -219,7 +219,7 @@ class QrCodeParserTest {
             assertNotNull(qrCodes);
             assertFalse(qrCodes.isEmpty(), "Expected at least one QR code in image");
             
-            final QrCodeContent parsed = parser.parseQrCodeString(qrCodes.get(0));
+            final InvoiceContent parsed = parser.parseQrCodeString(qrCodes.get(0));
             assertNotNull(parsed);
         }
 
@@ -346,7 +346,7 @@ class QrCodeParserTest {
         void shouldHandleSpecialCharacters() {
             final String qrString = "A:123456789*G:FR 0/2026-0001*S:Test with spaces and symbols!@#$%";
 
-            final QrCodeContent result = parser.parseQrCodeString(qrString);
+            final InvoiceContent result = parser.parseQrCodeString(qrString);
 
             assertNotNull(result);
             assertEquals("FR 0/2026-0001", result.getInvoiceId());
@@ -362,7 +362,7 @@ class QrCodeParserTest {
             }
             final String qrString = sb.toString();
 
-            final QrCodeContent result = parser.parseQrCodeString(qrString);
+            final InvoiceContent result = parser.parseQrCodeString(qrString);
 
             assertNotNull(result);
             assertEquals("123456789", result.getIssuerTin());
@@ -373,7 +373,7 @@ class QrCodeParserTest {
         void shouldHandleEmptyFieldValues() {
             final String qrString = "A:*B:*C:*D:FT*E:**F:*G:*H:*";
 
-            final QrCodeContent result = parser.parseQrCodeString(qrString);
+            final InvoiceContent result = parser.parseQrCodeString(qrString);
 
             assertNotNull(result);
             assertEquals("", result.getIssuerTin());
@@ -386,7 +386,7 @@ class QrCodeParserTest {
         void shouldHandleOnlySeparators() {
             final String qrString = "******";
 
-            final QrCodeContent result = parser.parseQrCodeString(qrString);
+            final InvoiceContent result = parser.parseQrCodeString(qrString);
 
             assertNotNull(result);
             assertEquals(qrString, result.getRaw());
@@ -402,7 +402,7 @@ class QrCodeParserTest {
         void shouldParseStandardPortugueseInvoice() {
             final String qrString = "A:507957129*B:123456789*C:PT*D:FT*E:N*F:20260315*G:FT 0123/45678*H:ABC-123*I1:PT*I2:0*I3:0*I4:0*I5:0*I6:0*I7:23*I8:110.5*L:0*M:0*N:25.50*O:111.50*P:0*Q:abc123def456*R:0001*S:Invoice";
 
-            final QrCodeContent result = parser.parseQrCodeString(qrString);
+            final InvoiceContent result = parser.parseQrCodeString(qrString);
 
             assertNotNull(result);
             assertEquals("507957129", result.getIssuerTin());
@@ -429,7 +429,7 @@ class QrCodeParserTest {
         void shouldParseInvoiceReceipt() {
             final String qrString = "A:507957129*B:*C:PT*D:FR*E:N*F:20260315*G:FR 0123/45678*H:ABC-123*L:100*M:0*N:0*O:100*P:0*Q:hash*R:cert";
 
-            final QrCodeContent result = parser.parseQrCodeString(qrString);
+            final InvoiceContent result = parser.parseQrCodeString(qrString);
 
             assertNotNull(result);
             assertEquals("FR", result.getInvoiceType());
@@ -442,7 +442,7 @@ class QrCodeParserTest {
         void shouldParseCreditNote() {
             final String qrString = "A:507957129*B:987654321*C:PT*D:NC*E:N*F:20260315*G:NC 0123/45678*H:ABC-123*L:50*N:-11.5*O:38.5*P:0*Q:hash*R:cert";
 
-            final QrCodeContent result = parser.parseQrCodeString(qrString);
+            final InvoiceContent result = parser.parseQrCodeString(qrString);
 
             assertNotNull(result);
             assertEquals("NC", result.getInvoiceType());
@@ -455,7 +455,7 @@ class QrCodeParserTest {
         void shouldParseDebitNote() {
             final String qrString = "A:507957129*B:987654321*C:PT*D:ND*E:N*F:20260315*G:ND 0123/45678*H:ABC-123*L:0*N:23*O:25*P:0*Q:hash*R:cert";
 
-            final QrCodeContent result = parser.parseQrCodeString(qrString);
+            final InvoiceContent result = parser.parseQrCodeString(qrString);
 
             assertNotNull(result);
             assertEquals("ND", result.getInvoiceType());
@@ -466,7 +466,7 @@ class QrCodeParserTest {
         void shouldParseSimplifiedInvoice() {
             final String qrString = "A:507957129*B:*C:PT*D:FS*E:N*F:20260315*G:FS 0123/45678*H:ABC-123*I1:PT*I7:23*I8:23*L:100*N:23*O:123*P:0*Q:hash*R:cert";
 
-            final QrCodeContent result = parser.parseQrCodeString(qrString);
+            final InvoiceContent result = parser.parseQrCodeString(qrString);
 
             assertNotNull(result);
             assertEquals("FS", result.getInvoiceType());

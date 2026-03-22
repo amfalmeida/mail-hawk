@@ -19,11 +19,13 @@ docker build -t mail-hawk-java .
 ## Code Style
 
 - Use Java 21 features (records, pattern matching)
+- Use Lombok `@Builder` for model classes
+- Use `@Transactional` on methods that modify database (must be non-private)
 - Follow standard Java naming conventions
 - Keep methods focused and under 50 lines
 - Use meaningful variable names
 - Prefer immutable objects where possible
-- Use Lombok with `@RequiredArgsConstructor(onConstructor_ = @Inject)` for dependency injection
+- Use `@RequiredArgsConstructor(onConstructor_ = @Inject)` for dependency injection
 
 ## Architecture
 
@@ -34,20 +36,30 @@ src/main/java/com/amfalmeida/mailhawk/
 │   └── JsonLoggingFilter.java   # JSON logging/serialization filter
 ├── config/            # Configuration interfaces (SmallRye Config)
 │   ├── ActualConfig.java        # Actual Budget configuration
-│   └── ...
+│   ├── AppConfig.java          # Application configuration
+│   ├── MailConfig.java         # Mail configuration (pdfPasswords as List<String>)
+│   └── SheetsConfig.java       # Google Sheets configuration
 ├── dto/               # Data transfer objects
 │   ├── TransactionDto.java     # Transaction for Actual Budget
 │   └── TransactionImportRequest.java
-├── model/             # Data models (Invoice, QrCodeContent, etc.)
+├── model/             # Data models (use @Builder)
+│   ├── Invoice.java            # Invoice with InvoiceContent
+│   ├── InvoiceContent.java      # Invoice data (renamed from QrCodeContent)
+│   ├── InvoiceType.java        # Invoice type configuration
+│   ├── RecurrentBill.java      # Recurrent bill model
+│   └── SheetsResult.java
 ├── service/           # Business services
-│   ├── MailService.java        # IMAP email fetching, subject filtering
-│   ├── SearchTermBuilder.java  # IMAP search term construction
-│   ├── InvoiceProcessor.java   # Invoice processing pipeline
+│   ├── MailService.java         # IMAP email fetching, subject filtering
+│   ├── SearchTermBuilder.java   # IMAP search term construction
+│   ├── InvoiceProcessor.java    # Invoice processing pipeline
+│   ├── RecurrentBillService.java # Recurrent bill processing (scheduled)
 │   ├── SheetsService.java      # Google Sheets integration
 │   ├── DatabaseService.java    # SQLite/MariaDB operations
 │   ├── ActualBudgetService.java # Actual Budget transaction import
-│   └── QrCodeParser.java       # QR code parsing
-├── db/                # Panache entities (ProcessedInvoice, InvoiceConfig)
+│   └── QrCodeParser.java       # QR code and PDF parsing
+├── db/                # Panache entities
+│   ├── ProcessedInvoice.java
+│   └── InvoiceConfig.java
 └── health/            # Health checks (SchedulerHealthCheck)
 ```
 
@@ -57,7 +69,7 @@ src/main/java/com/amfalmeida/mailhawk/
 - Quarkus 3.19.x
 - Jakarta Mail (IMAP)
 - Google ZXing (QR codes)
-- Apache PDFBox (PDF processing)
+- Apache PDFBox (PDF processing, supports encrypted PDFs with passwords)
 - Google Sheets API
 - Actual Budget HTTP API
 - Lombok
@@ -80,6 +92,46 @@ MAIL_SUBJECT_TERMS=fatura,factura,extracto,recibo
 1. Server-side: Date filter (ReceivedDateTerm)
 2. Client-side: Case-insensitive contains check for each term
 
+### PDF Passwords
+
+PDF passwords are configured as comma-separated values (parsed automatically by Quarkus):
+
+```properties
+# application.properties
+mail.pdf-passwords=password1,password2,password3
+
+# .env
+MAIL_PDF_PASSWORDS=password1,password2,password3
+```
+
+**How it works:**
+1. Try opening PDF without password
+2. If `InvalidPasswordException` is thrown, try each configured password
+3. Log outcome without exposing passwords
+
+### Recurrent Bills
+
+Recurrent bills are read from a Google Sheets tab (configurable):
+
+```properties
+# application.properties
+sheets.recurrent-sheet=recurrent
+app.recurrent-check-interval=360
+
+# .env
+SHEETS_RECURRENT_SHEET=recurrent
+APP_RECURRENT_CHECK_INTERVAL=360
+```
+
+**Sheet columns:** Type, Local, Entity Email, Entity Name, NIF, Customer NIF, Value, Tax (ignored), Payment day, Until (optional), Comments
+
+**Processing:**
+1. Scheduled job runs at configurable interval (default: 360 seconds)
+2. Checks if payment day matches current day
+3. Validates "Until" date (optional, empty = forever)
+4. Creates invoice with ID: `REC-{entityName}-{YYYY-MM}`
+5. Stores in same `processed_invoices` table as regular invoices
+
 ### Database
 
 - SQLite (default): `DB_TYPE=sqlite`, `DB_URL=jdbc:sqlite:/data/mail_hawk.db`
@@ -99,29 +151,60 @@ ACTUAL_ACCOUNT_ID=your-account-id
 
 **Transaction fields:**
 - `account` - from config
-- `date` - invoice date from QR
+- `date` - invoice date from InvoiceContent
 - `amount` - total * 100 (negative)
 - `payee_name` - invoice type/entity
 - `notes` - invoice filename
 - `imported_id` - ATCUD for deduplication
 - `cleared` - true
 
-## Docker
+### Google Sheets
 
-Single container with Java runtime:
+Sheet names are configurable and support spaces:
 
-```bash
-make docker-build
-make docker-up
+```properties
+sheets.sheet-name=Bills values
+sheets.config-sheet=config
+sheets.recurrent-sheet=recurrent
 ```
 
-**Ports:**
-- 8080: Quarkus application
+## Model Classes
+
+All model classes use Lombok `@Builder` and `@Data`:
+
+```java
+Invoice invoice = Invoice.builder()
+    .id(invoiceId)
+    .subject("Recurrent: " + entityName)
+    .date(LocalDate.now())
+    .invoiceContent(invoiceContent)
+    .invoiceType(invoiceType)
+    .build();
+
+InvoiceContent content = InvoiceContent.builder()
+    .invoiceId(id)
+    .issuerTin(tin)
+    .total(amount)
+    .build();
+```
+
+## Docker
+
+Full stack with docker-compose.yml includes:
+- mail-hawk (port 8080)
+- actual-http-api (port 5007)
+- actual-budget (port 5006)
+
+```bash
+docker-compose up -d
+```
 
 ## Important Notes
 
 1. **Lombok + Quarkus**: Use `@RequiredArgsConstructor(onConstructor_ = @Inject)` for constructor injection
 2. **ConfigMapping defaults**: All fields need `@WithDefault("")` or app fails without env vars
-3. **Panache entities**: Use `@Transactional` on methods that modify data
+3. **Panache entities**: Use `@Transactional` on **non-private** methods that modify data
 4. **IMAP search**: Only date filter works reliably on all servers; filter subjects in Java
 5. **REST Client JSON**: Uses `JsonLoggingFilter` with Jackson ObjectMapper for proper serialization
+6. **InvoiceContent**: Previously named `QrCodeContent`, renamed to better reflect its purpose
+7. **Model naming**: Use `invoiceContent` variable name (not `qrCode` or `qr`)
