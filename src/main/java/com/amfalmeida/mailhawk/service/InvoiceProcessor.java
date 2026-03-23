@@ -88,7 +88,7 @@ void processInvoice(final Invoice invoice) {
             for (final String qrStr : qrCodes) {
                 final InvoiceContent invoiceContent = qrCodeParser.parseQrCodeString(qrStr);
                 if (invoiceContent == null || invoiceContent.getInvoiceId() == null || invoiceContent.getInvoiceId().isBlank()) {
-                    log.warn("Invalid QR code: {}", qrStr.substring(0, Math.min(50, qrStr.length())));
+                    log.warn("Invalid QR code: {}", qrStr);
                     continue;
                 }
 

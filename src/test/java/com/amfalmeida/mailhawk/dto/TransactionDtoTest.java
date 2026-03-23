@@ -1,4 +1,4 @@
-package com.amfalmeida.mailhawk.client;
+package com.amfalmeida.mailhawk.dto;
 
 import com.amfalmeida.mailhawk.dto.TransactionDto;
 import com.amfalmeida.mailhawk.dto.TransactionImportRequest;

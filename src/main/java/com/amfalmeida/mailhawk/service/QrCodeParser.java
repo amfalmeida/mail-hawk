@@ -9,6 +9,7 @@ import com.google.zxing.Result;
 import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.BarcodeFormat;
+import com.google.zxing.multi.GenericMultipleBarcodeReader;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
@@ -137,11 +138,18 @@ public final class QrCodeParser {
             hints.put(DecodeHintType.POSSIBLE_FORMATS, List.of(BarcodeFormat.QR_CODE));
 
             final MultiFormatReader reader = new MultiFormatReader();
-            final Result result = reader.decode(bitmap, hints);
+            final GenericMultipleBarcodeReader multiReader = new GenericMultipleBarcodeReader(reader);
+            
+            final Result[] results = multiReader.decodeMultiple(bitmap, hints);
 
-            if (result != null && result.getText() != null) {
-                qrCodes.add(result.getText());
+            for (final Result result : results) {
+                if (result.getText() != null && !result.getText().isEmpty()) {
+                    qrCodes.add(result.getText());
+                }
             }
+            
+            // Sort by length descending - longer QR codes typically contain more complete data
+            qrCodes.sort((a, b) -> Integer.compare(b.length(), a.length()));
         } catch (Exception e) {
             log.debug("No QR code found in image: {}", e.getMessage());
         }
