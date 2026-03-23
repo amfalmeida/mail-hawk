@@ -2,21 +2,8 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - "src/**"
-      - "pom.xml"
-      - "Dockerfile"
-      - "config.yaml"
-      - "run.sh"
-      - ".github/workflows/build.yaml"
-  pull_request:
-    branches:
-      - main
-  release:
-    types:
-      - published
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 env:
@@ -48,7 +35,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GitHub Container Registry
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -69,7 +55,7 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -78,17 +64,15 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create Release
+      - name: Update Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.build.outputs.version }}
           name: Release v${{ needs.build.outputs.version }}
           generate_release_notes: true
           draft: false
