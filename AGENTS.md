@@ -26,6 +26,8 @@ docker build -t mail-hawk-java .
 - Use meaningful variable names
 - Prefer immutable objects where possible
 - Use `@RequiredArgsConstructor(onConstructor_ = @Inject)` for dependency injection
+- Avoid wildcard imports (e.g., `import java.util.*;`) - use specific imports instead
+- Order methods by visibility: public first, then protected/package-private, then private
 
 ## Architecture
 

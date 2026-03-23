@@ -37,6 +37,61 @@ Monitor email for invoice attachments, parse QR codes and store data in Google S
 - **Actual Budget HTTP API** - Budget integration
 - **SQLite** - Local database
 
+## Architecture
+
+```mermaid
+graph TB
+    subgraph External["External Systems"]
+        Email["📧 Email (IMAP)"]
+        GSheets["📊 Google Sheets"]
+        ActualBudget["💰 Actual Budget"]
+    end
+
+    subgraph Core["Mail Hawk Services"]
+        MailService["MailService<br/>IMAP Fetching"]
+        InvoiceProcessor["InvoiceProcessor<br/>Orchestrator"]
+        QrCodeParser["QrCodeParser<br/>QR/PDF Parsing"]
+        RecurrentBillService["RecurrentBillService<br/>Recurring Bills"]
+    end
+
+    subgraph Storage["Data Layer"]
+        DatabaseService["DatabaseService"]
+        SQLite[("SQLite/MariaDB")]
+        SheetsService["SheetsService"]
+    end
+
+    subgraph Schedulers["Scheduled Jobs"]
+        CheckEmails["checkEmails()<br/>Every 60s"]
+        SyncConfigs["syncConfigs()<br/>Every 300s"]
+        CheckRecurrent["processRecurrentBills()<br/>Every 360s"]
+    end
+
+    Email -->|IMAP| MailService
+    MailService -->|Attachments| InvoiceProcessor
+    InvoiceProcessor -->|Parse QR/PDF| QrCodeParser
+    InvoiceProcessor -->|Store| DatabaseService
+    DatabaseService --> SQLite
+    InvoiceProcessor -->|Export| SheetsService
+    SheetsService -->|Append Row| GSheets
+    
+    RecurrentBillService -->|Read Bills| SheetsService
+    GSheets -->|Recurrent Bills| RecurrentBillService
+    RecurrentBillService -->|Create Invoice| InvoiceProcessor
+    
+    InvoiceProcessor -->|Import Transaction| ActualBudgetService
+    ActualBudgetService -->|REST API| ActualBudget
+
+    CheckEmails --> MailService
+    SyncConfigs --> SheetsService
+    CheckRecurrent --> RecurrentBillService
+
+    style MailService fill:#e1f5fe
+    style InvoiceProcessor fill:#e8f5e9
+    style QrCodeParser fill:#fff3e0
+    style DatabaseService fill:#fce4ec
+    style SheetsService fill:#f3e5f5
+```
+
 ## Quick Start
 
 ### Prerequisites
@@ -277,7 +332,6 @@ ACTUAL_ACCOUNT_ID=your-account-id
 | `mail_imap_days_older` | Days to look back | `30` |
 | `mail_subject_terms` | Comma-separated subject filter terms | `fatura,factura,extracto,recibo` |
 | `mail_listener_only_attachments` | Only process emails with attachments | `true` |
-| `mail_listener_max_emails` | Max emails per check (0 = unlimited) | `0` |
 | `mail_min_attachment_size` | Min message size in bytes (0 = disabled) | `0` |
 | `pdf_passwords` | PDF passwords (comma-separated) | - |
 

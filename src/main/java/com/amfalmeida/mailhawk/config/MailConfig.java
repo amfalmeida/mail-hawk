@@ -31,9 +31,6 @@ public interface MailConfig {
     @WithDefault("true")
     boolean onlyAttachments();
 
-    @WithDefault("0")
-    int maxEmails();
-
     List<String> pdfPasswords();
 
     @WithDefault("false")

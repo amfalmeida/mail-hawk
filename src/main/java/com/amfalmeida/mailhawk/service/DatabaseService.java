@@ -15,28 +15,11 @@ import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import jakarta.inject.Inject;
 
 @ApplicationScoped
 @Slf4j
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public final class DatabaseService {
-
-    private String hashRawQr(final String rawQr) {
-        try {
-            final MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            final byte[] hash = digest.digest(rawQr.getBytes("UTF-8"));
-            final StringBuilder hexString = new StringBuilder();
-            for (final byte b : hash) {
-                final String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) hexString.append('0');
-                hexString.append(hex);
-            }
-            return hexString.toString();
-        } catch (final Exception e) {
-            throw new RuntimeException("Failed to hash raw QR", e);
-        }
-    }
 
     public boolean isInvoiceProcessedByRawQr(final String rawQr) {
         final String hash = hashRawQr(rawQr);
@@ -174,5 +157,21 @@ public final class DatabaseService {
             saveConfig(config.type(), config.fromEmail(), config.name(), config.nif());
         }
         log.info("Synced {} configs from sheets", configs.size());
+    }
+
+    private String hashRawQr(final String rawQr) {
+        try {
+            final MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            final byte[] hash = digest.digest(rawQr.getBytes("UTF-8"));
+            final StringBuilder hexString = new StringBuilder();
+            for (final byte b : hash) {
+                final String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (final Exception e) {
+            throw new RuntimeException("Failed to hash raw QR", e);
+        }
     }
 }

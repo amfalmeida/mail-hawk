@@ -16,7 +16,15 @@ import java.nio.file.Files;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Properties;
+import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
 import jakarta.inject.Inject;
 
@@ -24,8 +32,6 @@ import jakarta.inject.Inject;
 @ApplicationScoped
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public final class MailService {
-
-    private static final Set<String> SUPPORTED_EXTENSIONS = Set.of("pdf", "jpg", "jpeg", "png", "bmp", "gif");
 
     private final MailConfig mailConfig;
 
@@ -101,10 +107,9 @@ public final class MailService {
 
             final List<String> subjectTerms = mailConfig.subjectTerms();
 
-            log.info("Searching emails - folder: {}, since: {}, max: {}, subjectTerms: {}, minSize: {}",
+            log.info("Searching emails - folder: {}, since: {}, subjectTerms: {}, minSize: {}",
                 mailConfig.folder(),
                 searchStartDate,
-                mailConfig.maxEmails() > 0 ? mailConfig.maxEmails() : "unlimited",
                 subjectTerms,
                 mailConfig.minAttachmentSize() > 0 ? mailConfig.minAttachmentSize() : "disabled");
 
@@ -136,12 +141,6 @@ public final class MailService {
                 log.info("Subject filter: {} -> {} emails", beforeFilter, messages.length);
             }
 
-            int maxEmails = mailConfig.maxEmails();
-            if (maxEmails > 0 && messages.length > maxEmails) {
-                log.info("Limiting to {} emails", maxEmails);
-                messages = Arrays.copyOf(messages, maxEmails);
-            }
-
             for (final Message msg : messages) {
                 try (MdcSetter ignored = new MdcSetter(UUID.randomUUID().toString())) {
                     final String messageId = getMessageId(msg);
@@ -150,7 +149,7 @@ public final class MailService {
                     }
 
                     if (mailConfig.onlyAttachments() && !hasAttachments(msg)) {
-                        log.debug("Skipping message: no attachments");
+                        log.debug("Skipping message: no attachments. messageId: {}", messageId);
                         continue;
                     }
 
@@ -190,8 +189,11 @@ public final class MailService {
             final Multipart mp = (Multipart) msg.getContent();
             for (int i = 0; i < mp.getCount(); i++) {
                 final Part part = mp.getBodyPart(i);
-                if (Part.ATTACHMENT.equalsIgnoreCase(part.getDisposition())) {
-                    return true;
+                final String disposition = part.getDisposition();
+                if (Part.ATTACHMENT.equalsIgnoreCase(disposition) || Part.INLINE.equalsIgnoreCase(disposition)) {
+                    if (FileTypes.isSupported(part.getFileName())) {
+                        return true;
+                    }
                 }
             }
         }
@@ -285,20 +287,18 @@ public final class MailService {
             final Multipart mp = (Multipart) msg.getContent();
             for (int i = 0; i < mp.getCount(); i++) {
                 final Part part = mp.getBodyPart(i);
-                if (Part.ATTACHMENT.equalsIgnoreCase(part.getDisposition())) {
-                    String filename = decodeHeader(part.getFileName());
-                    if (filename != null) {
-                        final String ext = filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
-                        if (SUPPORTED_EXTENSIONS.contains(ext)) {
-                            final File file = new File(tempDir, sanitizeFilename(filename));
-                            try (final var fos = Files.newOutputStream(file.toPath())) {
-                                part.getInputStream().transferTo(fos);
-                            }
-                            attachments.add(file);
-                            log.info("Saved attachment: {}", filename);
-                        } else {
-                            log.info("Skipping unsupported attachment: {}", filename);
+                final String disposition = part.getDisposition();
+                if (Part.ATTACHMENT.equalsIgnoreCase(disposition) || Part.INLINE.equalsIgnoreCase(disposition)) {
+                    final String filename = decodeHeader(part.getFileName());
+                    if (FileTypes.isSupported(filename)) {
+                        final File file = new File(tempDir, sanitizeFilename(filename));
+                        try (final var fos = Files.newOutputStream(file.toPath())) {
+                            part.getInputStream().transferTo(fos);
                         }
+                        attachments.add(file);
+                        log.info("Saved attachment: {}", filename);
+                    } else if (filename != null) {
+                        log.info("Skipping unsupported attachment: {}", filename);
                     }
                 }
             }

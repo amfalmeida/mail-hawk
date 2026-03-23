@@ -23,7 +23,10 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @ApplicationScoped
 @Slf4j
@@ -45,116 +48,13 @@ public final class QrCodeParser {
         }
 
         final String lowerPath = filePath.toLowerCase();
-        if (lowerPath.endsWith(".pdf")) {
+        if (FileTypes.isPdf(lowerPath)) {
             return extractQrCodesFromPdf(file, pdfPasswords);
-        } else if (lowerPath.endsWith(".png") || lowerPath.endsWith(".jpg") || lowerPath.endsWith(".jpeg")) {
+        } else if (FileTypes.isImage(lowerPath)) {
             return extractQrCodesFromImage(file);
         }
 
         return List.of();
-    }
-
-    private List<String> extractQrCodesFromPdf(final File file, final List<String> passwords) {
-        // Try without password first
-        try {
-            return tryExtractFromPdf(file, null);
-        } catch (InvalidPasswordException e) {
-            log.debug("PDF is password protected, trying configured passwords");
-        } catch (IOException e) {
-            log.error("Failed to read PDF: {}", file.getAbsolutePath(), e);
-            return List.of();
-        }
-
-        // PDF requires password, try each configured password
-        if (passwords != null && !passwords.isEmpty()) {
-            for (final String password : passwords) {
-                try {
-                    final List<String> result = tryExtractFromPdf(file, password);
-                    if (!result.isEmpty()) {
-                        return result;
-                    }
-                } catch (InvalidPasswordException e) {
-                    log.debug("Password didn't work for PDF: {}", file.getAbsolutePath());
-                } catch (IOException e) {
-                    log.error("Failed to read PDF: {}", file.getAbsolutePath(), e);
-                }
-            }
-        }
-        return List.of();
-    }
-
-    private List<String> tryExtractFromPdf(final File file, final String password) throws IOException {
-        final List<String> qrCodes = new ArrayList<>();
-
-        final PDDocument document = password != null && !password.isEmpty()
-            ? Loader.loadPDF(file, password)
-            : Loader.loadPDF(file);
-
-        try {
-            final PDFRenderer renderer = new PDFRenderer(document);
-
-            for (int pageIndex = 0; pageIndex < document.getNumberOfPages(); pageIndex++) {
-                try {
-                    final BufferedImage image = renderer.renderImage(pageIndex);
-                    final List<String> pageQrCodes = extractQrCodesFromImage(image);
-                    qrCodes.addAll(pageQrCodes);
-                } catch (Exception e) {
-                    log.debug("Failed to render page {} of PDF: {}", pageIndex, e.getMessage());
-                }
-            }
-        } finally {
-            document.close();
-        }
-
-        return qrCodes;
-    }
-
-    private List<String> extractQrCodesFromImage(final File file) {
-        try {
-            final BufferedImage image = javax.imageio.ImageIO.read(file);
-            if (image == null) {
-                log.warn("Could not read image file: {}", file.getAbsolutePath());
-                return List.of();
-            }
-            return extractQrCodesFromImage(image);
-        } catch (IOException e) {
-            log.error("Failed to read image: {}", file.getAbsolutePath(), e);
-            return List.of();
-        }
-    }
-
-    private List<String> extractQrCodesFromImage(final BufferedImage image) {
-        final List<String> qrCodes = new ArrayList<>();
-
-        try {
-            final BinaryBitmap bitmap = new BinaryBitmap(
-                new HybridBinarizer(
-                    new BufferedImageLuminanceSource(image)
-                )
-            );
-
-            final Map<DecodeHintType, Object> hints = new HashMap<>();
-            hints.put(DecodeHintType.TRY_HARDER, Boolean.TRUE);
-            hints.put(DecodeHintType.POSSIBLE_FORMATS, List.of(BarcodeFormat.QR_CODE));
-
-            final MultiFormatReader reader = new MultiFormatReader();
-            final GenericMultipleBarcodeReader multiReader = new GenericMultipleBarcodeReader(reader);
-            
-            final Result[] results = multiReader.decodeMultiple(bitmap, hints);
-
-            for (final Result result : results) {
-                if (result.getText() != null && !result.getText().isEmpty()) {
-                    qrCodes.add(result.getText());
-                }
-            }
-            
-            // Sort by length descending - longer QR codes typically contain more complete data
-            qrCodes.sort((a, b) -> Integer.compare(b.length(), a.length()));
-        } catch (Exception e) {
-            log.debug("No QR code found in image: {}", e.getMessage());
-        }
-
-        return qrCodes;
     }
 
     public InvoiceContent parseQrCodeString(final String qrString) {
@@ -238,6 +138,106 @@ public final class QrCodeParser {
                 .thirdTaxable(thirdTaxable.isEmpty() ? null : buildTaxable(thirdTaxable))
                 .raw(qrString)
                 .build();
+    }
+
+    private List<String> extractQrCodesFromPdf(final File file, final List<String> passwords) {
+        try {
+            return tryExtractFromPdf(file, null);
+        } catch (InvalidPasswordException e) {
+            log.debug("PDF is password protected, trying configured passwords");
+        } catch (IOException e) {
+            log.error("Failed to read PDF: {}", file.getAbsolutePath(), e);
+            return List.of();
+        }
+
+        if (passwords != null && !passwords.isEmpty()) {
+            for (final String password : passwords) {
+                try {
+                    final List<String> result = tryExtractFromPdf(file, password);
+                    if (!result.isEmpty()) {
+                        return result;
+                    }
+                } catch (InvalidPasswordException e) {
+                    log.debug("Password didn't work for PDF: {}", file.getAbsolutePath());
+                } catch (IOException e) {
+                    log.error("Failed to read PDF: {}", file.getAbsolutePath(), e);
+                }
+            }
+        }
+        return List.of();
+    }
+
+    private List<String> tryExtractFromPdf(final File file, final String password) throws IOException {
+        final List<String> qrCodes = new ArrayList<>();
+
+        final PDDocument document = password != null && !password.isEmpty()
+            ? Loader.loadPDF(file, password)
+            : Loader.loadPDF(file);
+
+        try {
+            final PDFRenderer renderer = new PDFRenderer(document);
+
+            for (int pageIndex = 0; pageIndex < document.getNumberOfPages(); pageIndex++) {
+                try {
+                    final BufferedImage image = renderer.renderImage(pageIndex);
+                    final List<String> pageQrCodes = extractQrCodesFromImage(image);
+                    qrCodes.addAll(pageQrCodes);
+                } catch (Exception e) {
+                    log.debug("Failed to render page {} of PDF: {}", pageIndex, e.getMessage());
+                }
+            }
+        } finally {
+            document.close();
+        }
+
+        return qrCodes;
+    }
+
+    private List<String> extractQrCodesFromImage(final File file) {
+        try {
+            final BufferedImage image = javax.imageio.ImageIO.read(file);
+            if (image == null) {
+                log.warn("Could not read image file: {}", file.getAbsolutePath());
+                return List.of();
+            }
+            return extractQrCodesFromImage(image);
+        } catch (IOException e) {
+            log.error("Failed to read image: {}", file.getAbsolutePath(), e);
+            return List.of();
+        }
+    }
+
+    private List<String> extractQrCodesFromImage(final BufferedImage image) {
+        final List<String> qrCodes = new ArrayList<>();
+
+        try {
+            final BinaryBitmap bitmap = new BinaryBitmap(
+                new HybridBinarizer(
+                    new BufferedImageLuminanceSource(image)
+                )
+            );
+
+            final Map<DecodeHintType, Object> hints = new HashMap<>();
+            hints.put(DecodeHintType.TRY_HARDER, Boolean.TRUE);
+            hints.put(DecodeHintType.POSSIBLE_FORMATS, List.of(BarcodeFormat.QR_CODE));
+
+            final MultiFormatReader reader = new MultiFormatReader();
+            final GenericMultipleBarcodeReader multiReader = new GenericMultipleBarcodeReader(reader);
+            
+            final Result[] results = multiReader.decodeMultiple(bitmap, hints);
+
+            for (final Result result : results) {
+                if (result.getText() != null && !result.getText().isEmpty()) {
+                    qrCodes.add(result.getText());
+                }
+            }
+            
+            qrCodes.sort((a, b) -> Integer.compare(b.length(), a.length()));
+        } catch (Exception e) {
+            log.debug("No QR code found in image: {}", e.getMessage());
+        }
+
+        return qrCodes;
     }
 
     private void parseTaxable(final Map<String, String> taxable, final String key, final String value) {
