@@ -158,7 +158,7 @@ public final class SheetsService {
             if (spreadsheetId == null) return false;
 
             final ValueRange result = sheetsService.spreadsheets().values()
-                .get(spreadsheetId, buildRange(getSheetName(), "AE:AE"))
+                .get(spreadsheetId, buildRange(getSheetName(), "AD:AD"))
                 .execute();
 
             final List<List<Object>> values = result.getValues();
