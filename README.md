@@ -1,5 +1,10 @@
 # Mail Hawk
 
+[![CI](https://github.com/amfalmeida/mail-hawk/actions/workflows/ci.yaml/badge.svg)](https://github.com/amfalmeida/mail-hawk/actions/workflows/ci.yaml)
+[![Java 21](https://img.shields.io/badge/Java-21-orange)](https://openjdk.org/projects/jdk/21/)
+[![Quarkus](https://img.shields.io/badge/Quarkus-3.19-purple)](https://quarkus.io/)
+[![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+
 <p align="center">
   <img src="logo.png" width="100">
 </p>
@@ -143,13 +148,14 @@ make setup             # Create .env from .env.example
 | `ACTUAL_BUDGET_SYNC_ID` | Budget sync ID | - |
 | `ACTUAL_ACCOUNT_ID` | Account ID for transactions | - |
 
-#### Application Configuration
+#### Database Configuration
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `APP_CHECK_INTERVAL` | Email check interval in seconds | `60` |
-| `APP_CONFIG_SYNC_INTERVAL` | Config sync interval in seconds | `300` |
-| `APP_DEFAULT_INVOICE_TYPE` | Default invoice type | `other` |
+| `DB_TYPE` | Database type (`sqlite` or `mariadb`) | `sqlite` |
+| `DB_URL` | Database connection URL | `jdbc:sqlite:/data/mail_hawk.db` |
+| `DB_USERNAME` | Database username (for MariaDB) | - |
+| `DB_PASSWORD` | Database password (for MariaDB) | - |
 
 ### Docker
 
@@ -257,16 +263,78 @@ ACTUAL_ACCOUNT_ID=your-account-id
 3. Configure via the add-on UI
 4. Start the add-on
 
-### Configuration via UI
+### Configuration
 
-| Option | Description |
-|--------|-------------|
-| `mail_imap_host` | IMAP server |
-| `mail_imap_username` | Email address |
-| `mail_imap_password` | App password |
-| `mail_subject_terms` | Comma-separated subject filter terms |
-| `spreadsheet_id` | Google Sheets ID |
-| `google_auth_encoded` | Base64 credentials |
+#### Mail Settings
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `mail_imap_host` | IMAP server host | `imap.gmail.com` |
+| `mail_imap_port` | IMAP server port | `993` |
+| `mail_imap_username` | Email address | - |
+| `mail_imap_password` | App password | - |
+| `mail_imap_folder` | Email folder to monitor | `INBOX` |
+| `mail_imap_days_older` | Days to look back | `30` |
+| `mail_subject_terms` | Comma-separated subject filter terms | `fatura,factura,extracto,recibo` |
+| `mail_listener_only_attachments` | Only process emails with attachments | `true` |
+| `mail_listener_max_emails` | Max emails per check (0 = unlimited) | `0` |
+| `mail_min_attachment_size` | Min message size in bytes (0 = disabled) | `0` |
+| `pdf_passwords` | PDF passwords (comma-separated) | - |
+
+#### Google Sheets Settings
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `spreadsheet_id` | Google Sheets ID | - |
+| `spreadsheet_sheet` | Invoice sheet name | `values` |
+| `spreadsheet_sheet_db` | Config sheet name | `config` |
+| `spreadsheet_sheet_recurrent` | Recurrent bills sheet name | `recurrent` |
+| `google_auth_encoded` | Base64-encoded service account JSON | - |
+
+#### Application Settings
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `invoice_type_default` | Default invoice type | `other` |
+| `check_interval` | Email check interval in seconds | `60` |
+| `config_sync_interval` | Config sync interval in seconds | `300` |
+| `recurrent_check_interval` | Recurrent bills check interval in seconds | `360` |
+
+#### Database Settings
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `db_type` | Database type (`sqlite` or `mariadb`) | `sqlite` |
+| `db_url` | Database URL | `jdbc:sqlite:share/mail_hawk/mail_hawk.db` |
+| `db_username` | Database username (for MariaDB) | - |
+| `db_password` | Database password (for MariaDB) | - |
+
+#### Actual Budget Settings
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `actual_enabled` | Enable Actual Budget integration | `false` |
+| `actual_url` | Actual Budget HTTP API URL | - |
+| `actual_api_key` | API key for authentication | - |
+| `actual_budget_sync_id` | Budget sync ID | - |
+| `actual_account_id` | Account ID for transactions | - |
+
+### Gmail Setup
+
+1. Enable 2-Factor Authentication on your Google account
+2. Go to Account Settings > Security > App Passwords
+3. Generate a new app password
+4. Use this password in `mail_imap_password`
+
+### Google Sheets Setup
+
+1. Create a Google Cloud Project
+2. Enable Google Sheets API
+3. Create a Service Account
+4. Download the JSON credentials
+5. Base64 encode: `base64 -w0 credentials.json` (Linux) or `base64 -i credentials.json` (macOS)
+6. Paste the result in `google_auth_encoded`
+7. Share your spreadsheet with the service account email (Editor access)
 
 ### Home Assistant SQL Sensor
 
@@ -290,6 +358,10 @@ sensor:
 5. Base64 encode the credentials:
 
 ```bash
+# Linux
+base64 -w0 credentials.json
+
+# macOS
 base64 -i credentials.json
 ```
 
