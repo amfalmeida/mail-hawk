@@ -8,7 +8,7 @@ import io.smallrye.config.WithDefault;
 @ConfigMapping(prefix = "actual")
 public interface ActualConfig {
     @WithDefault("false")
-    boolean enabled();
+    Optional<Boolean> enabled();
 
     @WithDefault("")
     Optional<String> url();

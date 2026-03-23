@@ -28,11 +28,7 @@ public class ActualBudgetService {
     ActualBudgetClient client;
 
     public boolean isEnabled() {
-        return config.enabled() && 
-               config.url().isPresent() && !config.url().get().isEmpty() &&
-               config.apiKey().isPresent() && !config.apiKey().get().isEmpty() &&
-               config.budgetSyncId().isPresent() && !config.budgetSyncId().get().isEmpty() &&
-               config.accountId().isPresent() && !config.accountId().get().isEmpty();
+        return config.enabled().orElse(false);
     }
 
     public void importInvoices(List<Invoice> invoices) {
