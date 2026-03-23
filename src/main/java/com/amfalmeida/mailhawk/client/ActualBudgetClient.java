@@ -13,7 +13,7 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
 import java.util.Map;
 
-@RegisterRestClient(configKey = "actual-budget")
+@RegisterRestClient(configKey = "actual-budget", baseUri = "http://localhost:5007")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @RegisterProvider(JsonLoggingFilter.class)
