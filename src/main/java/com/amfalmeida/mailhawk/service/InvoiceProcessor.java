@@ -1,22 +1,22 @@
 package com.amfalmeida.mailhawk.service;
 
+import java.io.File;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import com.amfalmeida.mailhawk.config.AppConfig;
 import com.amfalmeida.mailhawk.config.MailConfig;
 import com.amfalmeida.mailhawk.model.Invoice;
-import com.amfalmeida.mailhawk.model.InvoiceType;
 import com.amfalmeida.mailhawk.model.InvoiceContent;
+import com.amfalmeida.mailhawk.model.InvoiceType;
 import com.amfalmeida.mailhawk.model.SheetsResult;
+
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import java.io.File;
-import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-import jakarta.inject.Inject;
 
 @ApplicationScoped
 @RequiredArgsConstructor(onConstructor_ = @Inject)

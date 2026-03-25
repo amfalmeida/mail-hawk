@@ -1,13 +1,14 @@
 package com.amfalmeida.mailhawk.dto;
 
-import com.amfalmeida.mailhawk.dto.TransactionDto;
-import com.amfalmeida.mailhawk.dto.TransactionImportRequest;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 class TransactionDtoTest {
 

@@ -1,22 +1,22 @@
 package com.amfalmeida.mailhawk.service;
 
-import com.amfalmeida.mailhawk.config.AppConfig;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.util.List;
+
 import com.amfalmeida.mailhawk.db.entity.ProcessedInvoice;
 import com.amfalmeida.mailhawk.model.Invoice;
 import com.amfalmeida.mailhawk.model.InvoiceContent;
 import com.amfalmeida.mailhawk.model.InvoiceType;
 import com.amfalmeida.mailhawk.model.RecurrentBill;
+
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.YearMonth;
-import java.util.List;
 
 @ApplicationScoped
 @RequiredArgsConstructor(onConstructor_ = @Inject)
