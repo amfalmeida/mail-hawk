@@ -15,14 +15,16 @@ public final class SearchTermBuilder {
 
     private SearchTermBuilder() {}
 
-    public static SearchTerm buildDateFilter(LocalDate searchDate) {
+    public static SearchTerm buildDateFilter(final LocalDate searchDate) {
         return new ReceivedDateTerm(
             ComparisonTerm.GE,
             Date.from(searchDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
         );
     }
 
-    public static SearchTerm buildDateAndSizeFilter(LocalDate searchDate, long minSize) {
+    public static SearchTerm buildDateAndSizeFilter(
+            final LocalDate searchDate,
+            final long minSize) {
         SearchTerm dateTerm = buildDateFilter(searchDate);
         if (minSize <= 0) {
             return dateTerm;
@@ -31,7 +33,9 @@ public final class SearchTermBuilder {
         return new AndTerm(dateTerm, sizeTerm);
     }
 
-    public static boolean matchesSubject(String subject, List<String> subjectTerms) {
+    public static boolean matchesSubject(
+            final String subject,
+            final List<String> subjectTerms) {
         if (subject == null || subjectTerms == null || subjectTerms.isEmpty()) {
             return true;
         }

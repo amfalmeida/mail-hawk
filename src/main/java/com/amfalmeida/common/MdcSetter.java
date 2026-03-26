@@ -33,5 +33,4 @@ public class MdcSetter implements AutoCloseable {
     public void close() {
         addedMdcValues.forEach(mdcFields -> MDC.remove(mdcFields.getId()));
     }
-    
 }

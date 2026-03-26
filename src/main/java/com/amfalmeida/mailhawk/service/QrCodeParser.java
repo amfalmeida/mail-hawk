@@ -81,7 +81,9 @@ public final class QrCodeParser {
         String otherInformation = null;
 
         for (final String token : tokens) {
-            if (!token.contains(INNER_TOKEN)) continue;
+            if (!token.contains(INNER_TOKEN)) {
+                continue;
+            }
 
             final int colonIndex = token.indexOf(INNER_TOKEN);
             final String key = token.substring(0, colonIndex);
@@ -179,7 +181,7 @@ public final class QrCodeParser {
 
             for (int pageIndex = 0; pageIndex < document.getNumberOfPages(); pageIndex++) {
                 try {
-                    final BufferedImage image = renderer.renderImage(pageIndex);
+                    final BufferedImage image = renderer.renderImageWithDPI(pageIndex, 250);
                     final List<String> pageQrCodes = extractQrCodesFromImage(image);
                     qrCodes.addAll(pageQrCodes);
                 } catch (Exception e) {
@@ -270,11 +272,12 @@ public final class QrCodeParser {
 
             final Map<DecodeHintType, Object> hints = new HashMap<>();
             hints.put(DecodeHintType.TRY_HARDER, Boolean.TRUE);
+            hints.put(DecodeHintType.ALSO_INVERTED, Boolean.TRUE);
             hints.put(DecodeHintType.POSSIBLE_FORMATS, List.of(BarcodeFormat.QR_CODE));
 
-            final MultiFormatReader reader = new MultiFormatReader();
+final MultiFormatReader reader = new MultiFormatReader();
             final GenericMultipleBarcodeReader multiReader = new GenericMultipleBarcodeReader(reader);
-            
+
             final Result[] results = multiReader.decodeMultiple(bitmap, hints);
 
             for (final Result result : results) {
@@ -282,7 +285,7 @@ public final class QrCodeParser {
                     qrCodes.add(result.getText());
                 }
             }
-            
+
             qrCodes.sort((a, b) -> Integer.compare(b.length(), a.length()));
         } catch (Exception e) {
             log.debug("No QR code found in image: {}", e.getMessage());
@@ -329,7 +332,9 @@ public final class QrCodeParser {
     }
 
     private BigDecimal parseAmount(final String value) {
-        if (value == null || value.isEmpty()) return null;
+        if (value == null || value.isEmpty()) {
+            return null;
+        }
         try {
             return new BigDecimal(value.replace(",", "."));
         } catch (final NumberFormatException e) {

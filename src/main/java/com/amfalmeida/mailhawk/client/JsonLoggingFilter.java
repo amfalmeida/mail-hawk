@@ -17,17 +17,17 @@ public class JsonLoggingFilter implements ClientRequestFilter {
     ObjectMapper objectMapper;
 
     @Override
-    public void filter(ClientRequestContext requestContext) throws IOException {
-        Object entity = requestContext.getEntity();
+    public void filter(final ClientRequestContext requestContext) throws IOException {
+        final Object entity = requestContext.getEntity();
         if (entity != null) {
-            String json = objectMapper.writeValueAsString(entity);
+            final String json = objectMapper.writeValueAsString(entity);
             Log.infof("REST Client Request Body: %s", json);
-            
+
             // Set headers
-            MultivaluedMap<String, Object> headers = requestContext.getHeaders();
+            final MultivaluedMap<String, Object> headers = requestContext.getHeaders();
             headers.putSingle("Accept", "application/json");
             headers.putSingle("Content-Type", "application/json");
-            
+
             // Replace entity with properly serialized JSON string
             requestContext.setEntity(json, null, jakarta.ws.rs.core.MediaType.APPLICATION_JSON_TYPE);
             requestContext.getHeaders().putSingle("Content-Type", "application/json");

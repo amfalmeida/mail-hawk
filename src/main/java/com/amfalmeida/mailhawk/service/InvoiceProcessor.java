@@ -54,9 +54,11 @@ public final class InvoiceProcessor {
         try {
             final LocalDateTime searchStartDate = lastCheckedAt;
             lastCheckedAt = LocalDateTime.now();
-            
+
             mailService.checkAndProcessEmails(
-                invoice -> log.info("Processing invoice: {} | From: {}", invoice.getFilename(), invoice.getFromAddress()),
+                invoice -> log.info("Processing invoice: {} | From: {}",
+                    invoice.getFilename(),
+                    invoice.getFromAddress()),
                 this::processInvoice,
                 searchStartDate
             );
@@ -66,9 +68,9 @@ public final class InvoiceProcessor {
     }
 
 void processInvoice(final Invoice invoice) {
-        log.info("Processing invoice: {} | From: {} | Date: {}", 
+        log.info("Processing invoice: {} | From: {} | Date: {}",
             invoice.getSubject(), invoice.getFromAddress(), invoice.getDate());
-        
+
         if (invoice.getFilePath() == null || !new File(invoice.getFilePath()).exists()) {
             log.error("No file to process");
             return;
@@ -87,7 +89,9 @@ void processInvoice(final Invoice invoice) {
 
             for (final String qrStr : qrCodes) {
                 final InvoiceContent invoiceContent = qrCodeParser.parseQrCodeString(qrStr);
-                if (invoiceContent == null || invoiceContent.getInvoiceId() == null || invoiceContent.getInvoiceId().isBlank()) {
+                if (invoiceContent == null
+                        || invoiceContent.getInvoiceId() == null
+                        || invoiceContent.getInvoiceId().isBlank()) {
                     log.warn("Invalid QR code: {}", qrStr);
                     continue;
                 }
@@ -107,9 +111,9 @@ void processInvoice(final Invoice invoice) {
                 final var result = sheetsService.addInvoice(invoice);
                 log.info("Sheet operation result: {} - {}", result.status(), result.message());
 
-                if (result.status() == SheetsResult.Status.APPENDED || 
+                if (result.status() == SheetsResult.Status.APPENDED ||
                     result.status() == SheetsResult.Status.ALREADY_EXISTS) {
-                    
+
                     databaseService.markInvoiceProcessed(
                         invoiceContent.getAtcud(),
                         invoiceContent.getInvoiceId(),
@@ -148,15 +152,19 @@ void processInvoice(final Invoice invoice) {
 
     private InvoiceType determineInvoiceType(final Invoice invoice, final InvoiceContent invoiceContent) {
         String issuerTin = invoiceContent.getIssuerTin();
-        
+
         if (issuerTin != null && !issuerTin.isEmpty()) {
             final var config = sheetsService.getConfigurationByNif(issuerTin);
-            if (config.isPresent()) return config.get();
+            if (config.isPresent()) {
+                return config.get();
+            }
         }
 
         if (invoice.getFromAddress() != null && !invoice.getFromAddress().isEmpty()) {
             final var config = sheetsService.getConfigurationByEmail(invoice.getFromAddress());
-            if (config.isPresent()) return config.get();
+            if (config.isPresent()) {
+                return config.get();
+            }
         }
 
         return new InvoiceType(
@@ -168,13 +176,15 @@ void processInvoice(final Invoice invoice) {
     }
 
     private void cleanupFile(final String filePath) {
-        if (filePath == null) return;
+        if (filePath == null) {
+            return;
+        }
         try {
             final File file = new File(filePath);
             if (file.exists()) {
                 file.delete();
                 log.debug("Cleaned up file: {}", filePath);
-                
+
                 final File parent = file.getParentFile();
                 if (parent != null && parent.exists() && parent.getName().startsWith("invoice_")) {
                     parent.delete();

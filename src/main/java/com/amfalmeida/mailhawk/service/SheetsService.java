@@ -84,7 +84,9 @@ public final class SheetsService {
 
     public Optional<InvoiceType> getConfigurationByNif(final String nif) {
         final InvoiceType cached = configCacheByNif.get(nif);
-        if (cached != null) return Optional.of(cached);
+        if (cached != null) {
+            return Optional.of(cached);
+        }
 
         final Optional<InvoiceType> dbConfig = databaseService.getConfigByNif(nif);
         if (dbConfig.isPresent()) {
@@ -110,7 +112,9 @@ public final class SheetsService {
 
     public Optional<InvoiceType> getConfigurationByEmail(final String email) {
         final InvoiceType cached = configCacheByEmail.get(email);
-        if (cached != null) return Optional.of(cached);
+        if (cached != null) {
+            return Optional.of(cached);
+        }
 
         final Optional<InvoiceType> dbConfig = databaseService.getConfigByEmail(email);
         if (dbConfig.isPresent()) {
@@ -135,18 +139,24 @@ public final class SheetsService {
     }
 
     public List<InvoiceType> getConfigurations() {
-        if (sheetsService == null) return List.of();
+        if (sheetsService == null) {
+            return List.of();
+        }
 
         try {
             final String spreadsheetId = getSpreadsheetId();
-            if (spreadsheetId == null) return List.of();
+            if (spreadsheetId == null) {
+                return List.of();
+            }
 
             final ValueRange result = sheetsService.spreadsheets().values()
                 .get(spreadsheetId, buildRange(getConfigSheet(), "A:E"))
                 .execute();
 
             final List<List<Object>> values = result.getValues();
-            if (values == null || values.size() <= 1) return List.of();
+            if (values == null || values.size() <= 1) {
+                return List.of();
+            }
 
             final List<InvoiceType> configs = new ArrayList<>();
             for (int i = 1; i < values.size(); i++) {
@@ -168,18 +178,24 @@ public final class SheetsService {
     }
 
     public List<RecurrentBill> getRecurrentBills() {
-        if (sheetsService == null) return List.of();
+        if (sheetsService == null) {
+            return List.of();
+        }
 
         try {
             final String spreadsheetId = getSpreadsheetId();
-            if (spreadsheetId == null) return List.of();
+            if (spreadsheetId == null) {
+                return List.of();
+            }
 
             final ValueRange result = sheetsService.spreadsheets().values()
                 .get(spreadsheetId, buildRange(getRecurrentSheet(), "A:K"))
                 .execute();
 
             final List<List<Object>> values = result.getValues();
-            if (values == null || values.size() <= 1) return List.of();
+            if (values == null || values.size() <= 1) {
+                return List.of();
+            }
 
             final List<RecurrentBill> bills = new ArrayList<>();
             for (int i = 1; i < values.size(); i++) {
@@ -275,21 +291,25 @@ public final class SheetsService {
         }
     }
 
-    private String buildRange(String sheetName, String range) {
+    private String buildRange(final String sheetName, final String range) {
         return sheetName + "!" + range;
     }
 
     private boolean checkExisting(final Invoice invoice) {
         try {
             final String spreadsheetId = getSpreadsheetId();
-            if (spreadsheetId == null) return false;
+            if (spreadsheetId == null) {
+                return false;
+            }
 
             final ValueRange result = sheetsService.spreadsheets().values()
                 .get(spreadsheetId, buildRange(getSheetName(), "AD:AD"))
                 .execute();
 
             final List<List<Object>> values = result.getValues();
-            if (values == null) return false;
+            if (values == null) {
+                return false;
+            }
 
             final String rawQr = invoice.getInvoiceContent().getRaw();
             for (final List<Object> row : values) {
@@ -309,7 +329,11 @@ public final class SheetsService {
 
         InvoiceType type = invoice.getInvoiceType();
         if (type == null) {
-            type = new InvoiceType(appConfig.defaultInvoiceType(), invoice.getFromAddress(), invoice.getFromAddress(), "");
+            type = new InvoiceType(
+                appConfig.defaultInvoiceType(),
+                invoice.getFromAddress(),
+                invoice.getFromAddress(),
+                "");
         }
 
         values.add(type.type() != null ? type.type() : "");
@@ -331,9 +355,11 @@ public final class SheetsService {
             values.add(formatNumber(invoiceContent.getWithholdingTax()));
             values.add(invoiceContent.getAtcud() != null ? invoiceContent.getAtcud() : "");
 
-            final Taxable taxable = invoiceContent.getFirstTaxable() != null ? invoiceContent.getFirstTaxable() :
-                                     invoiceContent.getSecondTaxable() != null ? invoiceContent.getSecondTaxable() :
-                                     invoiceContent.getThirdTaxable();
+            final Taxable taxable = invoiceContent.getFirstTaxable() != null
+                ? invoiceContent.getFirstTaxable()
+                : invoiceContent.getSecondTaxable() != null
+                    ? invoiceContent.getSecondTaxable()
+                    : invoiceContent.getThirdTaxable();
 
             if (taxable != null) {
                 values.add(taxable.taxCountryRegion() != null ? taxable.taxCountryRegion() : "");
@@ -345,20 +371,26 @@ public final class SheetsService {
                 values.add(formatNumber(taxable.basicsStandardRate()));
                 values.add(formatNumber(taxable.totalTaxesStandardRate()));
             } else {
-                for (int i = 0; i < 8; i++) values.add("");
+                for (int i = 0; i < 8; i++) {
+                    values.add("");
+                }
             }
 
             values.add(invoiceContent.getHash() != null ? invoiceContent.getHash() : "");
             values.add(invoiceContent.getCertificateNumber() != null ? invoiceContent.getCertificateNumber() : "");
             values.add(invoiceContent.getOtherInformation() != null ? invoiceContent.getOtherInformation() : "");
 
-            final String[] dateParts = invoiceContent.getInvoiceDate() != null ? invoiceContent.getInvoiceDate().split("-") : new String[0];
+            final String[] dateParts = invoiceContent.getInvoiceDate() != null
+                ? invoiceContent.getInvoiceDate().split("-")
+                : new String[0];
             values.add(dateParts.length == 3 ? dateParts[1] : "");
             values.add(dateParts.length == 3 ? dateParts[0] : "");
 
             values.add(invoiceContent.getRaw() != null ? invoiceContent.getRaw() : "");
         } else {
-            for (int i = 0; i < 30; i++) values.add("");
+            for (int i = 0; i < 30; i++) {
+                values.add("");
+            }
         }
 
         values.add(invoice.getFilename() != null ? invoice.getFilename() : "");
@@ -375,7 +407,9 @@ public final class SheetsService {
     }
 
     private BigDecimal parseDecimal(final Object value) {
-        if (value == null) return null;
+        if (value == null) {
+            return null;
+        }
         try {
             return new BigDecimal(value.toString().replace(",", "."));
         } catch (final Exception e) {
@@ -384,7 +418,9 @@ public final class SheetsService {
     }
 
     private Integer parseInteger(final Object value) {
-        if (value == null) return null;
+        if (value == null) {
+            return null;
+        }
         try {
             return Integer.parseInt(value.toString().trim());
         } catch (final Exception e) {

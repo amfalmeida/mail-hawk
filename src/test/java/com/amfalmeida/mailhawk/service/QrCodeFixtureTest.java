@@ -15,37 +15,35 @@ import static org.junit.jupiter.api.Assertions.*;
 @Tag("ondemand")
 class QrCodeFixtureTest {
 
-    private static final String FIXTURE_FILE = "qr_code_example.pdf";
+    private static final String FIXTURE_FILE = "test.pdf";
 
     private QrCodeParser parser;
-    private String fixturesDir;
+    private File fixturesDir;
 
     @BeforeEach
     void setUp() {
         parser = new QrCodeParser();
-        final File resourcesDir = new File("src/test/resources/fixtures");
-        fixturesDir = resourcesDir.exists() ? resourcesDir.getAbsolutePath() : null;
+        fixturesDir = new File("src/test/resources/fixtures");
     }
 
     @Test
     @DisplayName("Check specific fixture file QR code is parseable")
     @Tag("ondemand")
     void checkSpecificFixtureFileQrCodeIsParseable() {
-        if (fixturesDir == null) {
-            fail("Fixtures directory not found");
+        if (!fixturesDir.exists()) {
+            fail("Fixtures directory not found: " + fixturesDir.getAbsolutePath());
             return;
         }
 
-        final String filePath = fixturesDir + "/" + FIXTURE_FILE;
-        final File file = new File(filePath);
+        final File file = new File(fixturesDir, FIXTURE_FILE);
         if (!file.exists()) {
-            fail("Fixture file not found: " + filePath);
+            fail("Fixture file not found: " + file.getAbsolutePath());
             return;
         }
 
-        final List<String> qrCodes = parser.getQrCodes(filePath, List.of());
+        final List<String> qrCodes = parser.getQrCodes(file.getAbsolutePath(), List.of());
 
-        assertFalse(qrCodes.isEmpty(), "No QR codes found in fixture file: " + filePath);
+        assertFalse(qrCodes.isEmpty(), "No QR codes found in fixture file: " + file.getAbsolutePath());
 
         for (final String qrCode : qrCodes) {
             final InvoiceContent content = parser.parseQrCodeString(qrCode);

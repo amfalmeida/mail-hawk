@@ -10,9 +10,13 @@ public final class FileTypes {
     private FileTypes() {}
 
     private static String getExtension(final String filename) {
-        if (filename == null) return null;
+        if (filename == null) {
+            return null;
+        }
         final int dot = filename.lastIndexOf('.');
-        if (dot < 0 || dot == filename.length() - 1) return null;
+        if (dot < 0 || dot == filename.length() - 1) {
+            return null;
+        }
         return filename.substring(dot + 1).toLowerCase();
     }
 

@@ -26,8 +26,12 @@ docker build -t mail-hawk-java .
 - Use meaningful variable names
 - Prefer immutable objects where possible
 - Use `@RequiredArgsConstructor(onConstructor_ = @Inject)` for dependency injection
-- Avoid wildcard imports (e.g., `import java.util.*;`) - use specific imports instead
+- **Avoid wildcard imports** - use specific imports instead (e.g., `import java.util.List` not `import java.util.*`)
 - Order methods by visibility: public first, then protected/package-private, then private
+- **Use `final` on all variables, parameters, and exception catch blocks** where applicable
+- **Maximum line length is 120 characters**
+- Break long lines logically (after commas, before operators, after method parameters)
+- **Always use braces `{}` for if/for/while statements** - one-line if statements are not allowed
 
 ## Architecture
 

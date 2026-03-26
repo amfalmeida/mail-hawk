@@ -133,17 +133,17 @@ public final class DatabaseService {
     public void saveConfig(final String type, final String fromEmail, final String name, final String nif) {
         final String id = nif + "_" + fromEmail;
         InvoiceConfig config = InvoiceConfig.find("id", id).firstResult();
-        
+
         if (config == null) {
             config = new InvoiceConfig();
             config.id = id;
         }
-        
+
         config.type = type;
         config.fromEmail = fromEmail;
         config.name = name;
         config.nif = nif;
-        
+
         try {
             config.persist();
         } catch (final Exception e) {
@@ -166,7 +166,9 @@ public final class DatabaseService {
             final StringBuilder hexString = new StringBuilder();
             for (final byte b : hash) {
                 final String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) hexString.append('0');
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
                 hexString.append(hex);
             }
             return hexString.toString();

@@ -21,7 +21,7 @@ import java.util.List;
 @ApplicationScoped
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class ActualBudgetService {
-    
+
     private final ActualConfig config;
 
     @RestClient
@@ -31,7 +31,7 @@ public class ActualBudgetService {
         return config.enabled().orElse(false);
     }
 
-    public void importInvoices(List<Invoice> invoices) {
+    public void importInvoices(final List<Invoice> invoices) {
         if (!isEnabled()) {
             log.debug("Actual Budget integration is disabled or not configured");
             return;
@@ -62,19 +62,21 @@ public class ActualBudgetService {
         }
     }
 
-    private TransactionDto toTransactionDto(Invoice invoice) {
+    private TransactionDto toTransactionDto(final Invoice invoice) {
         var invoiceContent = invoice.getInvoiceContent();
         var invoiceType = invoice.getInvoiceType();
-        
+
         String date;
-        if (invoiceContent != null && invoiceContent.getInvoiceDate() != null && !invoiceContent.getInvoiceDate().isEmpty()) {
+        if (invoiceContent != null
+                && invoiceContent.getInvoiceDate() != null
+                && !invoiceContent.getInvoiceDate().isEmpty()) {
             date = invoiceContent.getInvoiceDate();
         } else if (invoice.getDate() != null) {
             date = invoice.getDate().format(DateTimeFormatter.ISO_LOCAL_DATE);
         } else {
             date = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
         }
-        
+
         Integer amount = null;
         if (invoiceContent != null && invoiceContent.getTotal() != null) {
             amount = -invoiceContent.getTotal().multiply(BigDecimal.valueOf(100)).intValue();

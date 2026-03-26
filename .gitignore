@@ -30,3 +30,4 @@ Thumbs.db
 # Maven
 .mvn/wrapper/maven-wrapper.jar
 .factorypath
+src/test/resources/fixtures/test.pdf

@@ -1,5 +1,9 @@
 name: "Mail Hawk"
+<<<<<<< Updated upstream
 version: "2.0.7"
+=======
+version: "2.0.8"
+>>>>>>> Stashed changes
 url: "https://github.com/amfalmeida/mail-hawk"
 slug: "mail_hawk"
 image: ghcr.io/amfalmeida/mail-hawk

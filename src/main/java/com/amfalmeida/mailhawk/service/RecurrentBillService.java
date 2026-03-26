@@ -29,7 +29,7 @@ public class RecurrentBillService {
     @Scheduled(every = "${app.recurrent-check-interval:360}s", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void processRecurrentBills() {
         log.info("Checking recurrent bills...");
-        
+
         try {
             List<RecurrentBill> bills = sheetsService.getRecurrentBills();
             int processed = 0;
@@ -54,7 +54,7 @@ public class RecurrentBillService {
         }
     }
 
-    private boolean shouldProcess(RecurrentBill bill) {
+    private boolean shouldProcess(final RecurrentBill bill) {
         if (bill.entityName() == null || bill.entityName().isEmpty()) {
             return false;
         }
@@ -83,7 +83,7 @@ public class RecurrentBillService {
         return true;
     }
 
-    private void processBill(RecurrentBill bill) {
+    private void processBill(final RecurrentBill bill) {
         log.info("Processing recurrent bill: {}", bill.entityName());
 
         Invoice invoice = createInvoice(bill);
@@ -97,7 +97,7 @@ public class RecurrentBillService {
         saveProcessedInvoice(bill, invoice);
     }
 
-    private Invoice createInvoice(RecurrentBill bill) {
+    private Invoice createInvoice(final RecurrentBill bill) {
         LocalDate today = LocalDate.now();
         String invoiceId = generateInvoiceId(bill.entityName());
         BigDecimal value = bill.value() != null ? bill.value() : BigDecimal.ZERO;
@@ -134,12 +134,12 @@ public class RecurrentBillService {
                 .build();
     }
 
-    private String generateInvoiceId(String entityName) {
+    private String generateInvoiceId(final String entityName) {
         return "REC-" + entityName.replaceAll("[^a-zA-Z0-9]", "") + "-" + YearMonth.now().toString();
     }
 
     @Transactional
-    void saveProcessedInvoice(RecurrentBill bill, Invoice invoice) {
+    void saveProcessedInvoice(final RecurrentBill bill, final Invoice invoice) {
         ProcessedInvoice processed = new ProcessedInvoice();
         processed.rawQrHash = invoice.getId();
         processed.atcud = invoice.getId();

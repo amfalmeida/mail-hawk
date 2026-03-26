@@ -1,7 +1,11 @@
 package com.amfalmeida.mailhawk.db.entity;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -154,7 +158,7 @@ public class ProcessedInvoice extends PanacheEntityBase {
     @Column(name = "total_taxes_standard_rate_3")
     public BigDecimal totalTaxesStandardRate3;
 
-    public static ProcessedInvoice findByRawQrHash(String hash) {
+    public static ProcessedInvoice findByRawQrHash(final String hash) {
         return find("rawQrHash", hash).firstResult();
     }
 }
