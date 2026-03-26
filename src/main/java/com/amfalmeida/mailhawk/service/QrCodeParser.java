@@ -186,10 +186,61 @@ public final class QrCodeParser {
                     log.debug("Failed to render page {} of PDF: {}", pageIndex, e.getMessage());
                 }
             }
+            
+            if (qrCodes.isEmpty()) {
+                qrCodes.addAll(extractWithZbar(file));
+            }
         } finally {
             document.close();
         }
 
+        return qrCodes;
+    }
+
+    private List<String> extractWithZbar(final File file) {
+        final List<String> qrCodes = new ArrayList<>();
+        
+        try {
+            final File tempPng = File.createTempFile("pdf_page_", ".png");
+            tempPng.deleteOnExit();
+            
+            final ProcessBuilder pb = new ProcessBuilder("pdftocairo", "-png", "-r", "300", 
+                "-f", "1", "-l", "999", file.getAbsolutePath(), 
+                tempPng.getAbsolutePath().replace(".png", ""));
+            pb.redirectErrorStream(true);
+            final Process p = pb.start();
+            p.waitFor(30, java.util.concurrent.TimeUnit.SECONDS);
+            
+            final File parent = tempPng.getParentFile();
+            final String baseName = tempPng.getName().replace(".png", "");
+            final File[] pngFiles = parent.listFiles((dir, name) -> 
+                name.startsWith(baseName) && name.endsWith(".png"));
+            
+            if (pngFiles != null) {
+                for (final File pngFile : pngFiles) {
+                    try {
+                        final ProcessBuilder zbarPb = new ProcessBuilder("zbarimg", "--quiet", pngFile.getAbsolutePath());
+                        zbarPb.redirectErrorStream(true);
+                        final Process zbarP = zbarPb.start();
+                        final java.io.BufferedReader reader = new java.io.BufferedReader(
+                            new java.io.InputStreamReader(zbarP.getInputStream()));
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            if (line.startsWith("QR-Code:")) {
+                                qrCodes.add(line.substring("QR-Code:".length()));
+                            }
+                        }
+                        zbarP.waitFor(10, java.util.concurrent.TimeUnit.SECONDS);
+                    } finally {
+                        pngFile.delete();
+                    }
+                }
+            }
+            tempPng.delete();
+        } catch (Exception e) {
+            log.debug("zbar fallback unavailable: {}", e.getMessage());
+        }
+        
         return qrCodes;
     }
 

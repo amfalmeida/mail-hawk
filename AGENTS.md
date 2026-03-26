@@ -76,6 +76,14 @@ src/main/java/com/amfalmeida/mailhawk/
 - Actual Budget HTTP API
 - Lombok
 
+### System Dependencies (Optional)
+
+For PDFs with QR codes that ZXing cannot detect, install zbar and poppler:
+
+- **Docker**: Already included in Dockerfile
+- **macOS**: `brew install zbar poppler`
+- **Ubuntu/Debian**: `apt-get install libzbar0 poppler-utils`
+
 ## Configuration
 
 ### Subject Filter

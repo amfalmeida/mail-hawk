@@ -13,7 +13,7 @@ RUN ./mvnw clean package -DskipTests
 
 FROM eclipse-temurin:21-jre-alpine
 
-RUN apk add --no-cache curl jq bash
+RUN apk add --no-cache curl jq bash zbar poppler-utils
 
 WORKDIR /app
 
