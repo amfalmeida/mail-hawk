@@ -217,6 +217,7 @@ public final class MailService {
         final String subject = decodeHeader(msg.getSubject());
         final String fromEmail = extractEmail(msg.getFrom());
         final String fromName = extractName(msg.getFrom());
+        final String toEmail = extractEmail(msg.getRecipients(Message.RecipientType.TO));
         final LocalDate date = extractDate(msg);
 
         final List<File> attachments = saveAttachments(msg);
@@ -227,7 +228,7 @@ public final class MailService {
                 subject,
                 fromEmail,
                 fromName,
-                mailConfig.username(),
+                toEmail,
                 date,
                 file.getName(),
                 file.getAbsolutePath(),

@@ -275,14 +275,14 @@ public final class QrCodeParser {
             hints.put(DecodeHintType.ALSO_INVERTED, Boolean.TRUE);
             hints.put(DecodeHintType.POSSIBLE_FORMATS, List.of(BarcodeFormat.QR_CODE));
 
-final MultiFormatReader reader = new MultiFormatReader();
+            final MultiFormatReader reader = new MultiFormatReader();
             final GenericMultipleBarcodeReader multiReader = new GenericMultipleBarcodeReader(reader);
 
             final Result[] results = multiReader.decodeMultiple(bitmap, hints);
 
             for (final Result result : results) {
                 if (result.getText() != null && !result.getText().isEmpty()) {
-                    qrCodes.add(result.getText());
+                    qrCodes.add(result.getText().trim());
                 }
             }
 
