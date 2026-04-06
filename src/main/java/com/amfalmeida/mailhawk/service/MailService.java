@@ -5,6 +5,7 @@ import com.amfalmeida.mailhawk.config.MailConfig;
 import com.amfalmeida.mailhawk.model.Invoice;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.annotation.PostConstruct;
 import jakarta.mail.*;
 import jakarta.mail.search.SearchTerm;
 import lombok.Getter;
@@ -18,7 +19,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 @Slf4j
 @ApplicationScoped
@@ -29,7 +34,15 @@ public final class MailService {
 
     private Session session;
     @Getter private Store store;
-    private final Set<String> processedMessageIds = Collections.synchronizedSet(new HashSet<>());
+    private Cache<String, Boolean> processedMessageIds;
+
+    @PostConstruct
+    void initCache() {
+        this.processedMessageIds = Caffeine.newBuilder()
+            .maximumSize(mailConfig.messageCacheSize())
+            .expireAfterWrite(mailConfig.messageCacheExpireDays(), TimeUnit.DAYS)
+            .build();
+    }
 
     public boolean connect() {
         try {
@@ -169,7 +182,7 @@ public final class MailService {
         try (MdcSetter ignored = new MdcSetter(UUID.randomUUID().toString())) {
             final String messageId = getMessageId(msg);
 
-            if (processedMessageIds.contains(messageId)) {
+            if (processedMessageIds.getIfPresent(messageId) != null) {
                 log.debug("Skipping message: already processed. messageId: {}", messageId);
                 return Optional.empty();
             }
@@ -190,7 +203,7 @@ public final class MailService {
                 }
             });
 
-            processedMessageIds.add(messageId);
+            processedMessageIds.put(messageId, Boolean.TRUE);
             return Optional.of(invoices);
         } catch (final Exception e) {
             log.error("Error processing message", e);

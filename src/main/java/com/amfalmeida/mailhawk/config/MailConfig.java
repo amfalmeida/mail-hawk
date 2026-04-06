@@ -38,4 +38,10 @@ public interface MailConfig {
 
     @WithDefault("0")
     long minAttachmentSize();
+
+    @WithDefault("10000")
+    long messageCacheSize();
+
+    @WithDefault("30")
+    int messageCacheExpireDays();
 }
