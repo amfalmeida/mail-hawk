@@ -56,9 +56,10 @@ public final class InvoiceProcessor {
             lastCheckedAt = LocalDateTime.now();
 
             mailService.checkAndProcessEmails(
-                invoice -> log.info("Processing invoice: {} | From: {}",
+                invoice -> log.info("Processing invoice: {} | From: {} | To: {}",
                     invoice.getFilename(),
-                    invoice.getFromAddress()),
+                    invoice.getFromAddress(),
+                    invoice.getToAddress()),
                 this::processInvoice,
                 searchStartDate
             );
@@ -67,9 +68,9 @@ public final class InvoiceProcessor {
         }
     }
 
-void processInvoice(final Invoice invoice) {
-        log.info("Processing invoice: {} | From: {} | Date: {}",
-            invoice.getSubject(), invoice.getFromAddress(), invoice.getDate());
+    void processInvoice(final Invoice invoice) {
+        log.info("Processing invoice: {} | From: {} | To: {} | Date: {}",
+            invoice.getSubject(), invoice.getFromAddress(), invoice.getToAddress(), invoice.getDate());
 
         if (invoice.getFilePath() == null || !new File(invoice.getFilePath()).exists()) {
             log.error("No file to process");
