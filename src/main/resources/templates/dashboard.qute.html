@@ -72,7 +72,6 @@
                     <th>Issuer</th>
                     <th>NIF</th>
                     <th>Total</th>
-                    <th>Status</th>
                     <th></th>
                 </tr>
             </thead>
@@ -85,11 +84,10 @@
                     <td>{invoice.issuerName ?: '-'}</td>
                     <td>{invoice.issuerNif ?: '-'}</td>
                     <td>{invoice.total ?: 0}€</td>
-                    <td><span class="badge bg-success">{invoice.status ?: '-'}</span></td>
                     <td><span class="toggle-icon">▼</span></td>
                 </tr>
                 <tr class="detail-row collapse detail-{invoice.atcud}">
-                    <td colspan="8">
+                    <td colspan="7">
                         <div class="detail-content">
                             <div class="row mt-2">
                                 <div class="col-md-3">
@@ -98,7 +96,6 @@
                                         <dt class="col-sm-4">Invoice ID</dt><dd class="col-sm-8">{invoice.invoiceId ?: '-'}</dd>
                                         <dt class="col-sm-4">ATCUD</dt><dd class="col-sm-8"><code>{invoice.atcud ?: '-'}</code></dd>
                                         <dt class="col-sm-4">Date</dt><dd class="col-sm-8">{invoice.invoiceDate ?: '-'}</dd>
-                                        <dt class="col-sm-4">Status</dt><dd class="col-sm-8">{invoice.status ?: '-'}</dd>
                                         <dt class="col-sm-4">Type</dt><dd class="col-sm-8">{invoice.invoiceType ?: '-'}</dd>
                                         <dt class="col-sm-4">Processed</dt><dd class="col-sm-8">{invoice.processedAt ?: '-'}</dd>
                                     </dl>
