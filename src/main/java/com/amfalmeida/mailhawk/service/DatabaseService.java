@@ -16,6 +16,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import io.quarkus.panache.common.Page;
+
 @ApplicationScoped
 @Slf4j
 @RequiredArgsConstructor(onConstructor_ = @Inject)
@@ -157,6 +159,27 @@ public final class DatabaseService {
             saveConfig(config.type(), config.fromEmail(), config.name(), config.nif());
         }
         log.info("Synced {} configs from sheets", configs.size());
+    }
+
+    public List<ProcessedInvoice> listInvoices(final int page, final int size) {
+        return ProcessedInvoice.find("ORDER BY processedAt DESC")
+            .page(Page.of(page, size))
+            .list();
+    }
+
+    public long countInvoices() {
+        return ProcessedInvoice.count();
+    }
+
+    public ProcessedInvoice findInvoiceByAtcud(final String atcud) {
+        return ProcessedInvoice.find("atcud", atcud).firstResult();
+    }
+
+    public List<ProcessedInvoice> searchInvoices(final String query) {
+        return ProcessedInvoice.find(
+            "issuerName LIKE ?1 OR issuerNif LIKE ?1 OR atcud LIKE ?1 OR invoiceId LIKE ?1",
+            "%" + query + "%"
+        ).list();
     }
 
     private String hashRawQr(final String rawQr) {

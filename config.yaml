@@ -1,5 +1,5 @@
 name: "Mail Hawk"
-version: "2.0.9"
+version: "2.1.0"
 url: "https://github.com/amfalmeida/mail-hawk"
 slug: "mail_hawk"
 image: ghcr.io/amfalmeida/mail-hawk
@@ -14,8 +14,9 @@ map:
 ports:
   8080/tcp: 8080
 ports_description:
-  8080/tcp: "Health check endpoint"
+  8080/tcp: "Dashboard & Health check endpoint"
 watchdog: http://[HOST]:[PORT:8080]/q/health/live
+webui: http://[HOST]:[PORT:8080]/dashboard
 options:
   mail_imap_host: "imap.gmail.com"
   mail_imap_port: "993"
