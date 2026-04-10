@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="auto">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mail Hawk - Invoice Dashboard</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        .collapsible-row { cursor: pointer; }
+        .collapsible-row:hover { background-color: var(--bs-tertiary-bg); }
+        .detail-row { background-color: var(--bs-secondary-bg); }
+        .detail-row td { border-top: none !important; padding-top: 0; }
+        .detail-content { display: none; }
+        .detail-row:not(.collapsed) .detail-content { display: block; }
+        .collapsed .toggle-icon { transform: rotate(-90deg); }
+        .toggle-icon { transition: transform 0.2s; }
+        code { word-break: break-all; }
+    </style>
+</head>
+<body>
+<nav class="navbar bg-body-tertiary border-bottom">
+    <div class="container-fluid d-flex justify-content-between">
+        <span class="navbar-brand mb-0 h1">Mail Hawk - Invoices</span>
+        <button class="btn btn-outline-secondary btn-sm" onclick="toggleTheme()">
+            <span id="theme-icon">🌙</span>
+        </button>
+    </div>
+</nav>
+
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Total (6 Months)</h6>
+                    <h2 class="text-primary">{monthlyTotalFormatted} EUR</h2>
+                </div>
+            </div>
+            <div class="card text-center mt-2">
+                <div class="card-body py-2">
+                    <h6 class="card-title text-muted mb-1">Monthly Average</h6>
+                    <h4 class="text-success mb-0">{monthlyAverageFormatted} EUR</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-10">
+            <h6 class="text-muted mb-2">Monthly Distribution</h6>
+            <div style="position: relative; height: 220px; width: 100%;">
+                <canvas id="monthlyAreaChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h6 class="text-muted mb-2">Monthly Spending by Type</h6>
+            <div style="position: relative; height: 280px; width: 100%;">
+                <canvas id="monthlyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <form action="/dashboard/search" method="get" class="row g-3 mb-4">
+        <div class="col-auto">
+            <input type="text" name="q" class="form-control" placeholder="Search (atcud, issuer, NIF, invoice ID)..." 
+                   value="{query ?: ''}">
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Search</button>
+        </div>
+        <div class="col-auto">
+            <a href="/dashboard" class="btn btn-secondary">Clear</a>
+        </div>
+    </form>
+
+    <div class="alert alert-info">
+        Showing {invoices.size()} of {total} invoices (Page {page + 1} of {totalPages})
+    </div>
+    
+    {#if totalPages > 1}
+    <nav aria-label="Invoice pagination">
+        <ul class="pagination justify-content-center">
+            {#if page > 0}
+            <li class="page-item">
+                <a class="page-link" href="?page={page - 1}{query ? '&q=' + query : ''}">Previous</a>
+            </li>
+            {/if}
+            <li class="page-item disabled">
+                <span class="page-link">{page + 1} / {totalPages}</span>
+            </li>
+            {#if page < totalPages - 1}
+            <li class="page-item">
+                <a class="page-link" href="?page={page + 1}{query ? '&q=' + query : ''}">Next</a>
+            </li>
+            {/if}
+        </ul>
+    </nav>
+    {/if}
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Date</th>
+                    <th>Invoice ID</th>
+                    <th>ATCUD</th>
+                    <th>Issuer</th>
+                    <th>NIF</th>
+                    <th>Total</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {#for invoice in invoices}
+                <tr class="collapsible-row" data-bs-toggle="collapse" data-bs-target=".detail-{invoice.atcud}">
+                    <td>{invoice.invoiceDate ?: '-'}</td>
+                    <td>{invoice.invoiceId ?: '-'}</td>
+                    <td><code>{invoice.atcud ?: '-'}</code></td>
+                    <td>{invoice.issuerName ?: '-'}</td>
+                    <td>{invoice.issuerNif ?: '-'}</td>
+                    <td>{invoice.total ?: 0}€</td>
+                    <td><span class="toggle-icon">▼</span></td>
+                </tr>
+                <tr class="detail-row collapse detail-{invoice.atcud}">
+                    <td colspan="7">
+                        <div class="detail-content">
+                            <div class="row mt-2">
+                                <div class="col-md-3">
+                                    <h6>Basic Info</h6>
+                                    <dl class="row">
+                                        <dt class="col-sm-4">Invoice ID</dt><dd class="col-sm-8">{invoice.invoiceId ?: '-'}</dd>
+                                        <dt class="col-sm-4">ATCUD</dt><dd class="col-sm-8"><code>{invoice.atcud ?: '-'}</code></dd>
+                                        <dt class="col-sm-4">Date</dt><dd class="col-sm-8">{invoice.invoiceDate ?: '-'}</dd>
+                                        <dt class="col-sm-4">Type</dt><dd class="col-sm-8">{invoice.invoiceType ?: '-'}</dd>
+                                        <dt class="col-sm-4">Processed</dt><dd class="col-sm-8">{invoice.processedAt ?: '-'}</dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-3">
+                                    <h6>Issuer</h6>
+                                    <dl class="row">
+                                        <dt class="col-sm-4">Name</dt><dd class="col-sm-8">{invoice.issuerName ?: '-'}</dd>
+                                        <dt class="col-sm-4">NIF</dt><dd class="col-sm-8">{invoice.issuerNif ?: '-'}</dd>
+                                        <dt class="col-sm-4">Country</dt><dd class="col-sm-8">{invoice.customerCountry ?: '-'}</dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-3">
+                                    <h6>Customer</h6>
+                                    <dl class="row">
+                                        <dt class="col-sm-4">NIF</dt><dd class="col-sm-8">{invoice.customerNif ?: '-'}</dd>
+                                        <dt class="col-sm-4">Country</dt><dd class="col-sm-8">{invoice.customerCountry ?: '-'}</dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-3">
+                                    <h6>Amounts</h6>
+                                    <dl class="row">
+                                        <dt class="col-sm-4">Total</dt><dd class="col-sm-8">{invoice.total ?: 0}€</dd>
+                                        <dt class="col-sm-4">Taxes</dt><dd class="col-sm-8">{invoice.totalTaxes ?: 0}€</dd>
+                                        <dt class="col-sm-4">Non-taxable</dt><dd class="col-sm-8">{invoice.nonTaxable ?: 0}€</dd>
+                                        <dt class="col-sm-4">Stamp Duty</dt><dd class="col-sm-8">{invoice.stampDuty ?: 0}€</dd>
+                                        <dt class="col-sm-4">Withholding</dt><dd class="col-sm-8">{invoice.withholdingTax ?: 0}€</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-4">
+                                    <h6>Tax Breakdown (Region 1)</h6>
+                                    <dl class="row">
+                                        <dt class="col-sm-4">Region</dt><dd class="col-sm-8">{invoice.taxCountryRegion ?: '-'}</dd>
+                                        <dt class="col-sm-4">Exempt</dt><dd class="col-sm-8">{invoice.basicsExemptTaxes ?: 0}</dd>
+                                        <dt class="col-sm-4">Reduced</dt><dd class="col-sm-8">{invoice.basicsReducedRate ?: 0} ({invoice.totalTaxesReducedRate ?: 0})</dd>
+                                        <dt class="col-sm-4">Intermediate</dt><dd class="col-sm-8">{invoice.basicsIntermediateRate ?: 0} ({invoice.totalTaxesIntermediateRate ?: 0})</dd>
+                                        <dt class="col-sm-4">Standard</dt><dd class="col-sm-8">{invoice.basicsStandardRate ?: 0} ({invoice.totalTaxesStandardRate ?: 0})</dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-4">
+                                    <h6>Tax Breakdown (Region 2)</h6>
+                                    <dl class="row">
+                                        <dt class="col-sm-4">Region</dt><dd class="col-sm-8">{invoice.taxCountryRegion2 ?: '-'}</dd>
+                                        <dt class="col-sm-4">Exempt</dt><dd class="col-sm-8">{invoice.basicsExemptTaxes2 ?: 0}</dd>
+                                        <dt class="col-sm-4">Reduced</dt><dd class="col-sm-8">{invoice.basicsReducedRate2 ?: 0} ({invoice.totalTaxesReducedRate2 ?: 0})</dd>
+                                        <dt class="col-sm-4">Intermediate</dt><dd class="col-sm-8">{invoice.basicsIntermediateRate2 ?: 0} ({invoice.totalTaxesIntermediateRate2 ?: 0})</dd>
+                                        <dt class="col-sm-4">Standard</dt><dd class="col-sm-8">{invoice.basicsStandardRate2 ?: 0} ({invoice.totalTaxesStandardRate2 ?: 0})</dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-4">
+                                    <h6>Tax Breakdown (Region 3)</h6>
+                                    <dl class="row">
+                                        <dt class="col-sm-4">Region</dt><dd class="col-sm-8">{invoice.taxCountryRegion3 ?: '-'}</dd>
+                                        <dt class="col-sm-4">Exempt</dt><dd class="col-sm-8">{invoice.basicsExemptTaxes3 ?: 0}</dd>
+                                        <dt class="col-sm-4">Reduced</dt><dd class="col-sm-8">{invoice.basicsReducedRate3 ?: 0} ({invoice.totalTaxesReducedRate3 ?: 0})</dd>
+                                        <dt class="col-sm-4">Intermediate</dt><dd class="col-sm-8">{invoice.basicsIntermediateRate3 ?: 0} ({invoice.totalTaxesIntermediateRate3 ?: 0})</dd>
+                                        <dt class="col-sm-4">Standard</dt><dd class="col-sm-8">{invoice.basicsStandardRate3 ?: 0} ({invoice.totalTaxesStandardRate3 ?: 0})</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-6">
+                                    <h6>Email</h6>
+                                    <dl class="row">
+                                        <dt class="col-sm-3">Subject</dt><dd class="col-sm-9">{invoice.subject ?: '-'}</dd>
+                                        <dt class="col-sm-3">From</dt><dd class="col-sm-9">{invoice.fromName ?: '-'} &lt;{invoice.fromEmail ?: '-'}&gt;</dd>
+                                        <dt class="col-sm-3">To</dt><dd class="col-sm-9">{invoice.toEmail ?: '-'}</dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Hash / Certificate</h6>
+                                    <dl class="row">
+                                        <dt class="col-sm-3">Hash</dt><dd class="col-sm-9"><code class="small">{invoice.hash ?: '-'}</code></dd>
+                                        <dt class="col-sm-3">Certificate</dt><dd class="col-sm-9">{invoice.certificateNumber ?: '-'}</dd>
+                                        <dt class="col-sm-3">Other</dt><dd class="col-sm-9">{invoice.otherInformation ?: '-'}</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {/for}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<footer class="mt-4 py-3 border-top text-center text-muted">
+    <small>Mail Hawk &copy; {currentYear} | Version 2.0.0.4</small>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function toggleTheme() {
+    var html = document.documentElement;
+    var current = html.getAttribute('data-bs-theme');
+    var newTheme = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-bs-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    document.getElementById('theme-icon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+    location.reload();
+}
+
+var savedTheme = localStorage.getItem('theme') || 'auto';
+if (savedTheme !== 'auto') {
+    document.documentElement.setAttribute('data-bs-theme', savedTheme);
+    document.getElementById('theme-icon').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+    var gridColor = isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)';
+    var textColor = isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)';
+    var trendColor = isDark ? 'rgba(255, 99, 132, 0.9)' : 'rgba(220, 53, 69, 0.9)';
+    var avgColor = isDark ? 'rgba(75, 192, 192, 0.9)' : 'rgba(25, 135, 84, 0.9)';
+    
+    Chart.defaults.color = textColor;
+    Chart.defaults.borderColor = gridColor;
+    
+    var ctx = document.getElementById('monthlyChart');
+    if (ctx) {
+        var labels = ["Nov 2025", "Dec 2025", "Jan 2026", "Feb 2026", "Mar 2026", "Apr 2026"];
+        var data = [0.0, 0.0, 0.0, 0.0, 0.0, 164.04];
+        var typeColors = {
+            'FT': 'rgba(54, 162, 235, 0.8)',
+            'FR': 'rgba(75, 192, 192, 0.8)',
+            'other': 'rgba(255, 206, 86, 0.8)',
+            'water': 'rgba(153, 102, 255, 0.8)',
+            'electricity': 'rgba(255, 159, 64, 0.8)',
+            'gas': 'rgba(255, 99, 132, 0.8)',
+            'telecom': 'rgba(201, 203, 207, 0.8)'
+        };
+        var typeNames = {
+            'FT': 'Invoice',
+            'FR': 'Receipt',
+            'other': 'Other',
+            'water': 'Water',
+            'electricity': 'Electricity',
+            'gas': 'Gas',
+            'telecom': 'Telecom'
+        };
+        
+        var typeData = {
+            'other': [0.0, 0.0, 0.0, 0.0, 0.0, 104.55],
+            'water': [0.0, 0.0, 0.0, 0.0, 0.0, 27.47],
+            'FT': [0.0, 0.0, 0.0, 0.0, 0.0, 32.02]
+        };
+        
+        var datasets = [];
+        for (var type in typeData) {
+            datasets.push({
+                label: typeNames[type] || type,
+                data: typeData[type],
+                backgroundColor: typeColors[type] || 'rgba(200, 200, 200, 0.8)',
+                borderWidth: 1
+            });
+        }
+        
+        var n = data.length;
+        var sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+        for (var i = 0; i < n; i++) {
+            sumX += i;
+            sumY += data[i];
+            sumXY += i * data[i];
+            sumXX += i * i;
+        }
+        var slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        var intercept = (sumY - slope * sumX) / n;
+        var trendData = data.map(function(_, i) { return slope * i + intercept; });
+        
+        var avg = data.reduce(function(a, b) { return a + b; }, 0) / data.length;
+        var avgData = data.map(function() { return avg; });
+        
+        datasets.push({
+            type: 'line',
+            label: 'Trend',
+            data: trendData,
+            borderColor: trendColor,
+            borderWidth: 2,
+            fill: false,
+            tension: 0.1,
+            order: 0
+        });
+        
+        datasets.push({
+            type: 'line',
+            label: 'Average',
+            data: avgData,
+            borderColor: avgColor,
+            borderWidth: 2,
+            borderDash: [5, 5],
+            fill: false,
+            order: 0
+        });
+        
+        new Chart(ctx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            afterBody: function(context) {
+                                var monthIndex = context[0].dataIndex;
+                                var total = data[monthIndex];
+                                return 'Total: ' + total.toFixed(2) + ' EUR';
+                            }
+                        }
+                    },
+                    legend: {
+                        position: 'bottom'
+                    }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true,
+                        stacked: true,
+                        grid: {
+                            color: gridColor
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value + ' EUR';
+                            }
+                        }
+                    },
+                    x: {
+                        stacked: true,
+                        grid: {
+                            color: gridColor
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    var areaCtx = document.getElementById('monthlyAreaChart');
+    if (areaCtx) {
+        var areaData = [0.0, 0.0, 0.0, 0.0, 0.0, 164.04];
+        var areaLabels = ["Nov 2025", "Dec 2025", "Jan 2026", "Feb 2026", "Mar 2026", "Apr 2026"];
+        
+        var n = areaData.length;
+        var sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+        for (var i = 0; i < n; i++) {
+            sumX += i;
+            sumY += areaData[i];
+            sumXY += i * areaData[i];
+            sumXX += i * i;
+        }
+        var slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        var intercept = (sumY - slope * sumX) / n;
+        var trendData = areaData.map(function(_, i) { return slope * i + intercept; });
+        
+        new Chart(areaCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: areaLabels,
+                datasets: [{
+                    type: 'bar',
+                    label: 'Monthly Total (EUR)',
+                    data: areaData,
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    order: 2
+                }, {
+                    type: 'line',
+                    label: 'Trend',
+                    data: trendData,
+                    backgroundColor: isDark ? 'rgba(255, 99, 132, 0.3)' : 'rgba(255, 99, 132, 0.15)',
+                    borderColor: trendColor,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    order: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: gridColor
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value + ' EUR';
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: gridColor
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+</body>
+</html>
