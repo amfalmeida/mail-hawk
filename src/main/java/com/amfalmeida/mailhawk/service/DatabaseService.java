@@ -12,8 +12,12 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
 import java.security.MessageDigest;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import io.quarkus.panache.common.Page;
@@ -180,6 +184,70 @@ public final class DatabaseService {
             "issuerName LIKE ?1 OR issuerNif LIKE ?1 OR atcud LIKE ?1 OR invoiceId LIKE ?1",
             "%" + query + "%"
         ).list();
+    }
+
+    public List<ProcessedInvoice> findInvoicesByDateRange(final String startDate, final String endDate) {
+        return ProcessedInvoice.find(
+            "invoiceDate >= ?1 AND invoiceDate <= ?2",
+            startDate, endDate
+        ).list();
+    }
+
+    public Map<String, BigDecimal> getMonthlyTotals(final int months) {
+        final Map<String, BigDecimal> totals = new LinkedHashMap<>();
+        final LocalDate now = LocalDate.now();
+        
+        for (int i = months - 1; i >= 0; i--) {
+            final LocalDate month = now.minusMonths(i);
+            final String monthKey = month.format(DateTimeFormatter.ofPattern("MMM yyyy"));
+            final String startDate = month.withDayOfMonth(1).toString();
+            final String endDate = month.withDayOfMonth(month.lengthOfMonth()).toString();
+            
+            final List<ProcessedInvoice> invoices = ProcessedInvoice.find(
+                "invoiceDate >= ?1 AND invoiceDate <= ?2",
+                startDate, endDate
+            ).list();
+            
+            BigDecimal monthTotal = BigDecimal.ZERO;
+            for (final ProcessedInvoice inv : invoices) {
+                if (inv.total != null) {
+                    monthTotal = monthTotal.add(inv.total);
+                }
+            }
+            
+            totals.put(monthKey, monthTotal);
+        }
+        
+        return totals;
+    }
+
+    public Map<String, Map<String, BigDecimal>> getMonthlyTotalsByType(final int months) {
+        final Map<String, Map<String, BigDecimal>> result = new LinkedHashMap<>();
+        final LocalDate now = LocalDate.now();
+        
+        for (int i = months - 1; i >= 0; i--) {
+            final LocalDate month = now.minusMonths(i);
+            final String monthKey = month.format(DateTimeFormatter.ofPattern("MMM yyyy"));
+            final String startDate = month.withDayOfMonth(1).toString();
+            final String endDate = month.withDayOfMonth(month.lengthOfMonth()).toString();
+            
+            final List<ProcessedInvoice> invoices = ProcessedInvoice.find(
+                "invoiceDate >= ?1 AND invoiceDate <= ?2",
+                startDate, endDate
+            ).list();
+            
+            final Map<String, BigDecimal> typeTotals = new LinkedHashMap<>();
+            for (final ProcessedInvoice inv : invoices) {
+                if (inv.total != null) {
+                    final String type = inv.invoiceType != null ? inv.invoiceType : "other";
+                    typeTotals.merge(type, inv.total, BigDecimal::add);
+                }
+            }
+            
+            result.put(monthKey, typeTotals);
+        }
+        
+        return result;
     }
 
     private String hashRawQr(final String rawQr) {
