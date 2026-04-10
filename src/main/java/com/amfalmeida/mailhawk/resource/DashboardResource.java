@@ -12,7 +12,11 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Path("/dashboard")
 public class DashboardResource {
@@ -29,12 +33,33 @@ public class DashboardResource {
         final int size = 20;
         final long total = databaseService.countInvoices();
         final long totalPages = (total + size - 1) / size;
+        final Map<String, BigDecimal> monthlyTotalsMap = databaseService.getMonthlyTotals(6);
+        final double monthlyTotalSum = monthlyTotalsMap.values().stream()
+            .mapToDouble(BigDecimal::doubleValue).sum();
+        final double monthlyAverage = monthlyTotalSum / 6;
+        final List<String> monthlyLabelsList = new ArrayList<>(monthlyTotalsMap.keySet());
+        final List<Double> monthlyDataList = monthlyTotalsMap.values().stream()
+            .map(BigDecimal::doubleValue).toList();
+        final List<String> monthlyTotalsFormatted = monthlyTotalsMap.values().stream()
+            .map(b -> String.format("%.2f", b.doubleValue())).toList();
+        final Map<String, Map<String, BigDecimal>> monthlyByType = databaseService.getMonthlyTotalsByType(6);
+        
         TemplateInstance instance = dashboard.instance()
             .data("invoices", databaseService.listInvoices(page, size))
             .data("page", page)
             .data("total", total)
             .data("pageSize", size)
-            .data("totalPages", totalPages);
+            .data("totalPages", totalPages)
+            .data("currentYear", LocalDate.now().getYear())
+            .data("monthlyTotals", monthlyTotalsMap)
+            .data("monthlyLabels", monthlyLabelsList)
+            .data("monthlyData", monthlyDataList)
+            .data("monthlyTotal", monthlyTotalSum)
+            .data("monthlyTotalFormatted", String.format("%.2f", monthlyTotalSum))
+            .data("monthlyAverage", monthlyAverage)
+            .data("monthlyAverageFormatted", String.format("%.2f", monthlyAverage))
+            .data("monthlyByType", monthlyByType)
+            .data("monthlyTotalsFormatted", monthlyTotalsFormatted);
         return instance.render().toString();
     }
 
@@ -72,13 +97,34 @@ public class DashboardResource {
             total = databaseService.countInvoices();
             totalPages = (total + size - 1) / size;
         }
+        final Map<String, BigDecimal> monthlyTotalsMap = databaseService.getMonthlyTotals(6);
+        final double monthlyTotalSum = monthlyTotalsMap.values().stream()
+            .mapToDouble(BigDecimal::doubleValue).sum();
+        final double monthlyAverage = monthlyTotalSum / 6;
+        final List<String> monthlyLabelsList = new ArrayList<>(monthlyTotalsMap.keySet());
+        final List<Double> monthlyDataList = monthlyTotalsMap.values().stream()
+            .map(BigDecimal::doubleValue).toList();
+        final List<String> monthlyTotalsFormatted = monthlyTotalsMap.values().stream()
+            .map(b -> String.format("%.2f", b.doubleValue())).toList();
+        final Map<String, Map<String, BigDecimal>> monthlyByType = databaseService.getMonthlyTotalsByType(6);
+        
         TemplateInstance instance = dashboard.instance()
             .data("invoices", results)
             .data("query", query)
             .data("page", page)
             .data("total", total)
             .data("pageSize", size)
-            .data("totalPages", totalPages);
+            .data("totalPages", totalPages)
+            .data("currentYear", LocalDate.now().getYear())
+            .data("monthlyTotals", monthlyTotalsMap)
+            .data("monthlyLabels", monthlyLabelsList)
+            .data("monthlyData", monthlyDataList)
+            .data("monthlyTotal", monthlyTotalSum)
+            .data("monthlyTotalFormatted", String.format("%.2f", monthlyTotalSum))
+            .data("monthlyAverage", monthlyAverage)
+            .data("monthlyAverageFormatted", String.format("%.2f", monthlyAverage))
+            .data("monthlyByType", monthlyByType)
+            .data("monthlyTotalsFormatted", monthlyTotalsFormatted);
         return instance.render().toString();
     }
 }
