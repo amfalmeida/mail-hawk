@@ -76,23 +76,23 @@
     </form>
 
     <div class="alert alert-info">
-        Showing {invoices.size()} of {total} invoices (Page {page + 1} of {totalPages})
+        Showing {invoices.size()} of {total} invoices (Page {pageDisplay} of {totalPages})
     </div>
     
     {#if totalPages > 1}
     <nav aria-label="Invoice pagination">
         <ul class="pagination justify-content-center">
-            {#if page > 0}
+            {#if hasPrev}
             <li class="page-item">
-                <a class="page-link" href="?page={page - 1}{query ? '&q=' + query : ''}">Previous</a>
+                <a class="page-link" href="?page={prevPage}{query ? '&q=' + query : ''}">Previous</a>
             </li>
             {/if}
             <li class="page-item disabled">
-                <span class="page-link">{page + 1} / {totalPages}</span>
+                <span class="page-link">{pageDisplay} / {totalPages}</span>
             </li>
-            {#if page < totalPages - 1}
+            {#if hasNext}
             <li class="page-item">
-                <a class="page-link" href="?page={page + 1}{query ? '&q=' + query : ''}">Next</a>
+                <a class="page-link" href="?page={nextPage}{query ? '&q=' + query : ''}">Next</a>
             </li>
             {/if}
         </ul>
