@@ -1,5 +1,5 @@
 name: "Mail Hawk"
-version: "2.2.1"
+version: "2.2.2.0"
 url: "https://github.com/amfalmeida/mail-hawk"
 slug: "mail_hawk"
 image: ghcr.io/amfalmeida/mail-hawk
@@ -22,9 +22,11 @@ watchdog: http://[HOST]:[PORT:8080]/q/health/live
 webui: http://[HOST]:[PORT:8080]/dashboard
 ingress: true
 ingress_port: 8080
+ingress_stream: true
 panel_icon: mdi:email
 panel_title: Mail Hawk
 panel_admin: true
+hassio_api: true
 options:
   mail_imap_host: "imap.gmail.com"
   mail_imap_port: "993"
