@@ -1,8 +1,8 @@
 name: "Mail Hawk"
-version: "2.2.2.0"
+version: "2.2.3"
 url: "https://github.com/amfalmeida/mail-hawk"
 slug: "mail_hawk"
-image: ghcr.io/amfalmeida/mail-hawk
+#image: ghcr.io/amfalmeida/mail-hawk
 description: "Monitor email for invoice attachments, parse QR codes and store in database (Java/Quarkus)"
 panel_icon: mdi:email-sync-outline
 arch:
@@ -19,14 +19,14 @@ ports_description:
   8080/tcp: "Dashboard & Health check endpoint"
 host_network: true
 watchdog: http://[HOST]:[PORT:8080]/q/health/live
-webui: http://[HOST]:[PORT:8080]/dashboard
+webui: http://[HOST]:[PORT:8080]/
 ingress: true
 ingress_port: 8080
 ingress_stream: true
+ingress_entry: /dashboard
 panel_icon: mdi:email
 panel_title: Mail Hawk
 panel_admin: true
-hassio_api: true
 options:
   mail_imap_host: "imap.gmail.com"
   mail_imap_port: "993"
