@@ -311,7 +311,8 @@ public final class MailService {
         final String str = addresses[0].toString();
         final int start = str.indexOf('<');
         final int end = str.indexOf('>');
-        return start >= 0 && end > start ? str.substring(start + 1, end) : str;
+        final String emailAddr = start >= 0 && end > start ? str.substring(start + 1, end) : str;
+        return emailAddr.trim().toLowerCase();
     }
 
     private String extractName(final Address[] addresses) {
