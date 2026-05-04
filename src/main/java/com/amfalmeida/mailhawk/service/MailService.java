@@ -40,7 +40,7 @@ public final class MailService {
     void initCache() {
         this.processedMessageIds = Caffeine.newBuilder()
             .maximumSize(mailConfig.messageCacheSize())
-            .expireAfterWrite(mailConfig.messageCacheExpireDays(), TimeUnit.DAYS)
+            .expireAfterWrite(mailConfig.messageCacheExpireSeconds(), TimeUnit.SECONDS)
             .build();
     }
 

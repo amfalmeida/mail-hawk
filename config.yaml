@@ -1,8 +1,8 @@
 name: "Mail Hawk"
-version: "2.2.5"
+version: "2.2.6"
 url: "https://github.com/amfalmeida/mail-hawk"
 slug: "mail_hawk"
-#image: ghcr.io/amfalmeida/mail-hawk
+image: ghcr.io/amfalmeida/mail-hawk
 description: "Monitor email for invoice attachments, parse QR codes and store in database (Java/Quarkus)"
 panel_icon: mdi:email-sync-outline
 arch:
@@ -37,6 +37,7 @@ options:
   mail_subject_terms: "fatura,factura,extracto,recibo"
   mail_listener_only_attachments: true
   mail_min_attachment_size: 0
+  mail_message_cache_expire_seconds: "1800"
   pdf_passwords: ""
   spreadsheet_id: ""
   spreadsheet_sheet: "values"
@@ -66,6 +67,7 @@ schema:
   mail_subject_terms: str
   mail_listener_only_attachments: bool
   mail_min_attachment_size: int
+  mail_message_cache_expire_seconds: int
   pdf_passwords: password
   spreadsheet_id: str
   spreadsheet_sheet: str

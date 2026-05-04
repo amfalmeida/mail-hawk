@@ -42,6 +42,6 @@ public interface MailConfig {
     @WithDefault("10000")
     long messageCacheSize();
 
-    @WithDefault("30")
-    int messageCacheExpireDays();
+    @WithDefault("1800")
+    int messageCacheExpireSeconds();
 }

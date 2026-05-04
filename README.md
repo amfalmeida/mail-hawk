@@ -173,6 +173,7 @@ make setup             # Create .env from .env.example
 | `MAIL_ONLY_ATTACHMENTS` | Only process emails with attachments | `true` |
 | `MAIL_MAX_EMAILS` | Max emails per check (0 = unlimited) | `0` |
 | `MAIL_MIN_ATTACHMENT_SIZE` | Min message size in bytes (0 = disabled) | `0` |
+| `MAIL_MESSAGE_CACHE_EXPIRE_SECONDS` | Processed message cache expiration in seconds | `1800` |
 
 #### Google Sheets Configuration
 
@@ -333,6 +334,7 @@ ACTUAL_ACCOUNT_ID=your-account-id
 | `mail_subject_terms` | Comma-separated subject filter terms | `fatura,factura,extracto,recibo` |
 | `mail_listener_only_attachments` | Only process emails with attachments | `true` |
 | `mail_min_attachment_size` | Min message size in bytes (0 = disabled) | `0` |
+| `mail_message_cache_expire_seconds` | Processed message cache expiration in seconds | `1800` |
 | `pdf_passwords` | PDF passwords (comma-separated) | - |
 
 #### Google Sheets Settings
