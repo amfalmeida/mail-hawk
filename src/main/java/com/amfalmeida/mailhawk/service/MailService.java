@@ -188,7 +188,8 @@ public final class MailService {
             }
 
             if (mailConfig.onlyAttachments() && !hasAttachments(msg)) {
-                log.debug("Skipping message: no attachments. messageId: {}", messageId);
+                final String subject = decodeHeader(msg.getSubject());
+                log.debug("Skipping message: no attachments. messageId: {}, subject: '{}'", messageId, subject);
                 return Optional.empty();
             }
 
@@ -240,29 +241,28 @@ public final class MailService {
     }
 
     private List<File> saveAttachments(final Message msg) throws IOException, MessagingException {
-        if (!msg.isMimeType("multipart/*")) {
-            return List.of();
-        }
-
         final File tempDir = Files.createTempDirectory("invoice_").toFile();
         tempDir.deleteOnExit();
         final List<File> attachments = new ArrayList<>();
-
-        final Multipart mp = (Multipart) msg.getContent();
-        for (int i = 0; i < mp.getCount(); i++) {
-            saveAttachmentPart(mp.getBodyPart(i), tempDir)
-                .ifPresent(attachments::add);
-        }
-
+        saveAttachments((Part) msg, tempDir, attachments);
         return attachments;
     }
 
-    private Optional<File> saveAttachmentPart(
+    private void saveAttachments(
             final Part part,
-            final File tempDir) throws IOException, MessagingException {
+            final File tempDir,
+            final List<File> attachments) throws IOException, MessagingException {
+        if (part.isMimeType("multipart/*")) {
+            final Multipart mp = (Multipart) part.getContent();
+            for (int i = 0; i < mp.getCount(); i++) {
+                saveAttachments(mp.getBodyPart(i), tempDir, attachments);
+            }
+            return;
+        }
+
         final String disposition = part.getDisposition();
         if (!Part.ATTACHMENT.equalsIgnoreCase(disposition) && !Part.INLINE.equalsIgnoreCase(disposition)) {
-            return Optional.empty();
+            return;
         }
 
         final String filename = decodeHeader(part.getFileName());
@@ -270,7 +270,7 @@ public final class MailService {
             if (filename != null) {
                 log.info("Skipping unsupported attachment: {}", filename);
             }
-            return Optional.empty();
+            return;
         }
 
         final File file = new File(tempDir, sanitizeFilename(filename));
@@ -278,25 +278,28 @@ public final class MailService {
             part.getInputStream().transferTo(fos);
         }
         log.info("Saved attachment: {}", filename);
-        return Optional.of(file);
+        attachments.add(file);
     }
 
     private boolean hasAttachments(final Message msg) throws IOException, MessagingException {
-        if (!msg.isMimeType("multipart/*")) {
-            return false;
-        }
+        return hasAttachments((Part) msg);
+    }
 
-        final Multipart mp = (Multipart) msg.getContent();
-        for (int i = 0; i < mp.getCount(); i++) {
-            final Part part = mp.getBodyPart(i);
-            final String disposition = part.getDisposition();
-            if (Part.ATTACHMENT.equalsIgnoreCase(disposition) || Part.INLINE.equalsIgnoreCase(disposition)) {
-                if (FileTypes.isSupported(part.getFileName())) {
+    private boolean hasAttachments(final Part part) throws IOException, MessagingException {
+        if (part.isMimeType("multipart/*")) {
+            final Multipart mp = (Multipart) part.getContent();
+            for (int i = 0; i < mp.getCount(); i++) {
+                if (hasAttachments(mp.getBodyPart(i))) {
                     return true;
                 }
             }
+            return false;
         }
-        return false;
+
+        final String disposition = part.getDisposition();
+        final boolean isAttachment = Part.ATTACHMENT.equalsIgnoreCase(disposition)
+            || Part.INLINE.equalsIgnoreCase(disposition);
+        return isAttachment && FileTypes.isSupported(part.getFileName());
     }
 
     private String getMessageId(final Message msg) throws MessagingException {
