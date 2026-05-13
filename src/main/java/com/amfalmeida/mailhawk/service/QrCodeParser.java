@@ -178,71 +178,25 @@ public final class QrCodeParser {
 
         try {
             final PDFRenderer renderer = new PDFRenderer(document);
+            final int[] dpis = {250, 400};
 
-            for (int pageIndex = 0; pageIndex < document.getNumberOfPages(); pageIndex++) {
-                try {
-                    final BufferedImage image = renderer.renderImageWithDPI(pageIndex, 250);
-                    final List<String> pageQrCodes = extractQrCodesFromImage(image);
-                    qrCodes.addAll(pageQrCodes);
-                } catch (Exception e) {
-                    log.debug("Failed to render page {} of PDF: {}", pageIndex, e.getMessage());
+            for (final int dpi : dpis) {
+                if (!qrCodes.isEmpty()) {
+                    break;
                 }
-            }
-            
-            if (qrCodes.isEmpty()) {
-                qrCodes.addAll(extractWithZbar(file));
+                for (int pageIndex = 0; pageIndex < document.getNumberOfPages(); pageIndex++) {
+                    try {
+                        final BufferedImage image = renderer.renderImageWithDPI(pageIndex, dpi);
+                        qrCodes.addAll(extractQrCodesFromImage(image));
+                    } catch (final Exception e) {
+                        log.debug("Failed to render page {} at {} DPI: {}", pageIndex, dpi, e.getMessage());
+                    }
+                }
             }
         } finally {
             document.close();
         }
 
-        return qrCodes;
-    }
-
-    private List<String> extractWithZbar(final File file) {
-        final List<String> qrCodes = new ArrayList<>();
-        
-        try {
-            final File tempPng = File.createTempFile("pdf_page_", ".png");
-            tempPng.deleteOnExit();
-            
-            final ProcessBuilder pb = new ProcessBuilder("pdftocairo", "-png", "-r", "300", 
-                "-f", "1", "-l", "999", file.getAbsolutePath(), 
-                tempPng.getAbsolutePath().replace(".png", ""));
-            pb.redirectErrorStream(true);
-            final Process p = pb.start();
-            p.waitFor(30, java.util.concurrent.TimeUnit.SECONDS);
-            
-            final File parent = tempPng.getParentFile();
-            final String baseName = tempPng.getName().replace(".png", "");
-            final File[] pngFiles = parent.listFiles((dir, name) -> 
-                name.startsWith(baseName) && name.endsWith(".png"));
-            
-            if (pngFiles != null) {
-                for (final File pngFile : pngFiles) {
-                    try {
-                        final ProcessBuilder zbarPb = new ProcessBuilder("zbarimg", "--quiet", pngFile.getAbsolutePath());
-                        zbarPb.redirectErrorStream(true);
-                        final Process zbarP = zbarPb.start();
-                        final java.io.BufferedReader reader = new java.io.BufferedReader(
-                            new java.io.InputStreamReader(zbarP.getInputStream()));
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            if (line.startsWith("QR-Code:")) {
-                                qrCodes.add(line.substring("QR-Code:".length()));
-                            }
-                        }
-                        zbarP.waitFor(10, java.util.concurrent.TimeUnit.SECONDS);
-                    } finally {
-                        pngFile.delete();
-                    }
-                }
-            }
-            tempPng.delete();
-        } catch (Exception e) {
-            log.debug("zbar fallback unavailable: {}", e.getMessage());
-        }
-        
         return qrCodes;
     }
 
@@ -261,6 +215,20 @@ public final class QrCodeParser {
     }
 
     private List<String> extractQrCodesFromImage(final BufferedImage image) {
+        List<String> qrCodes = scanImage(image);
+
+        if (qrCodes.isEmpty()) {
+            qrCodes = scanImage(enhanceContrast(image));
+        }
+
+        if (!qrCodes.isEmpty()) {
+            qrCodes.sort((a, b) -> Integer.compare(b.length(), a.length()));
+        }
+
+        return qrCodes;
+    }
+
+    private List<String> scanImage(final BufferedImage image) {
         final List<String> qrCodes = new ArrayList<>();
 
         try {
@@ -285,13 +253,46 @@ public final class QrCodeParser {
                     qrCodes.add(result.getText().trim());
                 }
             }
-
-            qrCodes.sort((a, b) -> Integer.compare(b.length(), a.length()));
-        } catch (Exception e) {
+        } catch (final Exception e) {
             log.debug("No QR code found in image: {}", e.getMessage());
         }
 
         return qrCodes;
+    }
+
+    private static BufferedImage enhanceContrast(final BufferedImage image) {
+        final int w = image.getWidth();
+        final int h = image.getHeight();
+        final BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_BYTE_GRAY);
+        result.getGraphics().drawImage(image, 0, 0, null);
+
+        int min = 255;
+        int max = 0;
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                final int gray = result.getRGB(x, y) & 0xFF;
+                if (gray < min) {
+                    min = gray;
+                }
+                if (gray > max) {
+                    max = gray;
+                }
+            }
+        }
+
+        final int range = max - min;
+        if (range > 0 && range < 255) {
+            for (int y = 0; y < h; y++) {
+                for (int x = 0; x < w; x++) {
+                    final int gray = result.getRGB(x, y) & 0xFF;
+                    final int stretched = (gray - min) * 255 / range;
+                    final int rgb = (stretched << 16) | (stretched << 8) | stretched;
+                    result.setRGB(x, y, rgb);
+                }
+            }
+        }
+
+        return result;
     }
 
     private void parseTaxable(final Map<String, String> taxable, final String key, final String value) {
