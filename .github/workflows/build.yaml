@@ -69,11 +69,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        run: |
+          PREVIOUS_TAG=$(git tag --sort=-v:refname | head -n 2 | tail -n 1 || echo "")
+          if [ -z "$PREVIOUS_TAG" ]; then
+            git log --oneline --no-merges > release_notes.md
+          else
+            git log --oneline --no-merges "${PREVIOUS_TAG}.." > release_notes.md
+          fi
 
       - name: Update Release
         uses: softprops/action-gh-release@v3
         with:
           name: Release v${{ needs.build.outputs.version }}
-          generate_release_notes: true
+          body_path: release_notes.md
           draft: false
           prerelease: false
