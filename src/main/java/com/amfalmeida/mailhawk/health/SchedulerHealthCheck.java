@@ -1,7 +1,7 @@
 package com.amfalmeida.mailhawk.health;
 
 import com.amfalmeida.mailhawk.config.MailConfig;
-import com.amfalmeida.mailhawk.service.MailService;
+import com.amfalmeida.mailhawk.email.EmailClient;
 import io.quarkus.scheduler.Scheduler;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.mail.Folder;
@@ -21,7 +21,7 @@ import jakarta.inject.Inject;
 public class SchedulerHealthCheck implements HealthCheck {
 
     private final Scheduler scheduler;
-    private final MailService mailService;
+    private final EmailClient emailClient;
     private final MailConfig mailConfig;
 
     @Override
@@ -30,7 +30,7 @@ public class SchedulerHealthCheck implements HealthCheck {
             return HealthCheckResponse.down("Scheduler is not running");
         }
 
-        final Store store = mailService.getStore();
+        final Store store = emailClient.getStore();
         if (store == null || !store.isConnected()) {
             log.warn("Mail store is not connected");
             return HealthCheckResponse.down("Mail store is not connected");
