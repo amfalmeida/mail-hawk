@@ -1,9 +1,7 @@
 package com.amfalmeida.mailhawk.service;
 
 import java.io.File;
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import com.amfalmeida.mailhawk.config.AppConfig;
 import com.amfalmeida.mailhawk.config.MailConfig;
@@ -23,16 +21,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public final class InvoiceProcessor {
 
-    private final MailService mailService;
     private final SheetsService sheetsService;
     private final DatabaseService databaseService;
     private final QrCodeParser qrCodeParser;
     private final AppConfig appConfig;
     private final MailConfig mailConfig;
     private final ActualBudgetService actualBudgetService;
-
-    private LocalDateTime lastCheckedAt;
-    private final AtomicInteger checkEmailsCount = new AtomicInteger(0);
 
     @Scheduled(every = "${app.config-sync-interval:300s}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void syncConfigs() {
@@ -44,27 +38,6 @@ public final class InvoiceProcessor {
             }
         } catch (final Exception e) {
             log.error("Error syncing configs from sheets", e);
-        }
-    }
-
-    @Scheduled(every = "${app.check-interval}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
-    void checkEmails() {
-        final int runCount = checkEmailsCount.incrementAndGet();
-        log.info("Checking for new emails... (run #{})", runCount);
-        try {
-            final LocalDateTime searchStartDate = lastCheckedAt;
-            lastCheckedAt = LocalDateTime.now();
-
-            mailService.checkAndProcessEmails(
-                invoice -> log.info("Processing invoice: {} | From: {} | To: {}",
-                    invoice.getFilename(),
-                    invoice.getFromAddress(),
-                    invoice.getToAddress()),
-                this::processInvoice,
-                searchStartDate
-            );
-        } catch (final Exception e) {
-            log.error("Error checking emails", e);
         }
     }
 
