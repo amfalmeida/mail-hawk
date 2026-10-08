@@ -48,6 +48,9 @@ src/main/java/com/amfalmeida/mailhawk/
 ├── dto/               # Data transfer objects
 │   ├── TransactionDto.java     # Transaction for Actual Budget
 │   └── TransactionImportRequest.java
+├── email/             # Email access and processing
+│   ├── EmailClient.java         # IMAP connection, search, subject filtering, invoice extraction
+│   └── EmailProcessor.java      # Email processing pipeline (search → dedupe → extract → callbacks)
 ├── model/             # Data models (use @Builder)
 │   ├── Invoice.java            # Invoice with InvoiceContent
 │   ├── InvoiceContent.java      # Invoice data (renamed from QrCodeContent)
@@ -55,7 +58,7 @@ src/main/java/com/amfalmeida/mailhawk/
 │   ├── RecurrentBill.java      # Recurrent bill model
 │   └── SheetsResult.java
 ├── service/           # Business services
-│   ├── MailService.java         # IMAP email fetching, subject filtering
+│   ├── MailService.java         # Scheduled email check job (scheduling only)
 │   ├── SearchTermBuilder.java   # IMAP search term construction
 │   ├── InvoiceProcessor.java    # Invoice processing pipeline
 │   ├── RecurrentBillService.java # Recurrent bill processing (scheduled)
