@@ -1,17 +1,12 @@
 name: Dependabot auto-merge
 
 on:
-  pull_request:
-    branches:
-      - main
-    types: [opened, reopened, synchronize, labeled]
   workflow_run:
     workflows: ["CI"]
     types: [completed]
 
 permissions:
   contents: write
-  issues: write
   pull-requests: write
 
 jobs:
