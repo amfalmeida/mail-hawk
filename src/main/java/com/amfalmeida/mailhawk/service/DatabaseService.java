@@ -196,46 +196,46 @@ public final class DatabaseService {
     public Map<String, BigDecimal> getMonthlyTotals(final int months) {
         final Map<String, BigDecimal> totals = new LinkedHashMap<>();
         final LocalDate now = LocalDate.now();
-        
+
         for (int i = months - 1; i >= 0; i--) {
             final LocalDate month = now.minusMonths(i);
             final String monthKey = month.format(DateTimeFormatter.ofPattern("MMM yyyy"));
             final String startDate = month.withDayOfMonth(1).toString();
             final String endDate = month.withDayOfMonth(month.lengthOfMonth()).toString();
-            
+
             final List<ProcessedInvoice> invoices = ProcessedInvoice.find(
                 "invoiceDate >= ?1 AND invoiceDate <= ?2",
                 startDate, endDate
             ).list();
-            
+
             BigDecimal monthTotal = BigDecimal.ZERO;
             for (final ProcessedInvoice inv : invoices) {
                 if (inv.total != null) {
                     monthTotal = monthTotal.add(inv.total);
                 }
             }
-            
+
             totals.put(monthKey, monthTotal);
         }
-        
+
         return totals;
     }
 
     public Map<String, Map<String, BigDecimal>> getMonthlyTotalsByType(final int months) {
         final Map<String, Map<String, BigDecimal>> result = new LinkedHashMap<>();
         final LocalDate now = LocalDate.now();
-        
+
         for (int i = months - 1; i >= 0; i--) {
             final LocalDate month = now.minusMonths(i);
             final String monthKey = month.format(DateTimeFormatter.ofPattern("MMM yyyy"));
             final String startDate = month.withDayOfMonth(1).toString();
             final String endDate = month.withDayOfMonth(month.lengthOfMonth()).toString();
-            
+
             final List<ProcessedInvoice> invoices = ProcessedInvoice.find(
                 "invoiceDate >= ?1 AND invoiceDate <= ?2",
                 startDate, endDate
             ).list();
-            
+
             final Map<String, BigDecimal> typeTotals = new LinkedHashMap<>();
             for (final ProcessedInvoice inv : invoices) {
                 if (inv.total != null) {
@@ -243,10 +243,10 @@ public final class DatabaseService {
                     typeTotals.merge(type, inv.total, BigDecimal::add);
                 }
             }
-            
+
             result.put(monthKey, typeTotals);
         }
-        
+
         return result;
     }
 
