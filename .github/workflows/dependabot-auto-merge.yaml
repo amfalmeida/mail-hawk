@@ -1,9 +1,9 @@
-name: Dependabot auto-merge
+name: Weekly Dependabot Auto-Merge
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  schedule:
+    - cron: '0 9 * * 1' # Every Monday at 9:00 UTC
+  workflow_dispatch:   # Allows manual trigger from GitHub Actions tab
 
 permissions:
   contents: write
@@ -11,25 +11,50 @@ permissions:
 
 jobs:
   auto-merge:
-    name: Auto-merge once CI passes
+    name: Check, update, and merge passing Dependabot PRs
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
     steps:
-      - name: Enable auto-merge for Dependabot PRs that passed CI
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Process open Dependabot PRs
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
         run: |
           set -euo pipefail
-          if [ -z "$PR_NUMBER" ]; then
-            echo "CI run is not associated with a pull request — skipping"
+
+          echo "Fetching open Dependabot PRs..."
+          prs=$(gh pr list --author "dependabot[bot]" --state open --json number,url)
+          
+          if [ -z "$prs" ] || [ "$prs" = "[]" ]; then
+            echo "No open Dependabot PRs found."
             exit 0
           fi
-          PR_URL="https://github.com/${{ github.repository }}/pull/${PR_NUMBER}"
-          author="$(gh pr view "$PR_URL" --json author --jq '.author.login')"
-          if [ "$author" != "dependabot[bot]" ]; then
-            echo "$PR_URL is not a Dependabot PR — skipping"
-            exit 0
-          fi
-          echo "Enabling auto-merge for $PR_URL"
-          gh pr merge --auto --squash "$PR_URL"
+
+          echo "Found open Dependabot PRs."
+
+          echo "$prs" | jq -c '.[]' | while read -r pr; do
+            pr_number=$(echo "$pr" | jq -r '.number')
+            pr_url=$(echo "$pr" | jq -r '.url')
+            
+            echo "--------------------------------------------------"
+            echo "Processing PR #$pr_number ($pr_url)..."
+            
+            # Check CI status of the PR
+            checks_json=$(gh pr checks "$pr_url" --json bucket 2>/dev/null || echo "[]")
+            
+            # Verify if all checks passed (at least one check must exist and all must be 'pass')
+            all_passed=$(echo "$checks_json" | jq '[.[] | .bucket] | length > 0 and all(. == "pass")' 2>/dev/null || echo "false")
+            
+            if [ "$all_passed" = "true" ]; then
+              echo "All CI checks passed for PR #$pr_number. Merging now..."
+              if gh pr merge --squash "$pr_url"; then
+                echo "Successfully merged PR #$pr_number"
+              else
+                echo "Failed to merge PR #$pr_number (may require reviews or manual intervention)"
+              fi
+            else
+              echo "CI checks not passing yet (or no checks found) for PR #$pr_number. Updating branch with latest main..."
+              gh pr update-branch "$pr_url" || echo "Branch update not needed or failed for #$pr_number"
+            fi
+          done
