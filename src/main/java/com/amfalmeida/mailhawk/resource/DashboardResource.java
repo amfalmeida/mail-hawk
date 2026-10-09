@@ -43,7 +43,7 @@ public class DashboardResource {
         final List<String> monthlyTotalsFormatted = monthlyTotalsMap.values().stream()
             .map(b -> String.format("%.2f", b.doubleValue())).toList();
         final Map<String, Map<String, BigDecimal>> monthlyByType = databaseService.getMonthlyTotalsByType(6);
-        
+
         TemplateInstance instance = dashboard.instance()
             .data("invoices", databaseService.listInvoices(page, size))
             .data("page", page)
@@ -112,7 +112,7 @@ public class DashboardResource {
         final List<String> monthlyTotalsFormatted = monthlyTotalsMap.values().stream()
             .map(b -> String.format("%.2f", b.doubleValue())).toList();
         final Map<String, Map<String, BigDecimal>> monthlyByType = databaseService.getMonthlyTotalsByType(6);
-        
+
         TemplateInstance instance = dashboard.instance()
             .data("invoices", results)
             .data("query", query)
