@@ -59,6 +59,7 @@ src/main/java/com/amfalmeida/mailhawk/
 │   └── SheetsResult.java
 ├── service/           # Business services
 │   ├── MailService.java         # Scheduled email check job (scheduling only)
+│   ├── ApplicationInfo.java     # Startup logging of version from git.properties
 │   ├── SearchTermBuilder.java   # IMAP search term construction
 │   ├── InvoiceProcessor.java    # Invoice processing pipeline
 │   ├── RecurrentBillService.java # Recurrent bill processing (scheduled)
@@ -243,3 +244,7 @@ docker-compose up -d
 5. **REST Client JSON**: Uses `JsonLoggingFilter` with Jackson ObjectMapper for proper serialization
 6. **InvoiceContent**: Previously named `QrCodeContent`, renamed to better reflect its purpose
 7. **Model naming**: Use `invoiceContent` variable name (not `qrCode` or `qr`)
+8. **Build info (git.properties)**: `git-commit-id-maven-plugin` generates a slim `git.properties` at build time
+   (filtered with `includeOnlyProperties` so no PII like build-user email or commit messages ship in the jar).
+   `ApplicationInfo` logs `Mail Hawk version <tag> (tags: ..., commit: ..., branch: ...)` at startup,
+   using `git.closest.tag.name` → `git.commit.id.describe` → pom version as fallback.
