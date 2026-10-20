@@ -1,8 +1,8 @@
 package com.amfalmeida.mailhawk.service;
 
-import com.amfalmeida.mailhawk.model.Invoice;
-import com.amfalmeida.mailhawk.model.InvoiceType;
-import com.amfalmeida.mailhawk.model.InvoiceContent;
+import com.amfalmeida.mailhawk.email.model.Invoice;
+import com.amfalmeida.mailhawk.email.model.InvoiceType;
+import com.amfalmeida.mailhawk.email.model.InvoiceContent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

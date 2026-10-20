@@ -11,9 +11,6 @@ public interface ActualConfig {
     Optional<Boolean> enabled();
 
     @WithDefault("")
-    Optional<String> url();
-
-    @WithDefault("")
     Optional<String> apiKey();
 
     @WithDefault("")

@@ -1,4 +1,4 @@
-package com.amfalmeida.mailhawk.dto;
+package com.amfalmeida.mailhawk.client.dto;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
+import com.amfalmeida.mailhawk.client.dto.TransactionDto;
+import com.amfalmeida.mailhawk.client.dto.TransactionImportRequest;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;

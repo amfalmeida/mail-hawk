@@ -1,7 +1,7 @@
 package com.amfalmeida.mailhawk.email;
 
 import com.amfalmeida.mailhawk.config.MailConfig;
-import com.amfalmeida.mailhawk.model.Invoice;
+import com.amfalmeida.mailhawk.email.model.Invoice;
 import com.amfalmeida.mailhawk.service.FileTypes;
 import com.amfalmeida.mailhawk.service.SearchTermBuilder;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -44,6 +44,33 @@ import java.util.UUID;
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public final class EmailClient {
 
+    static {
+        try {
+            final var mc = (jakarta.activation.MailcapCommandMap)
+                jakarta.activation.CommandMap.getDefaultCommandMap();
+            mc.addMailcap(
+                "text/plain;; x-java-content-handler=com.sun.mail.handlers.text_plain"
+            );
+            mc.addMailcap(
+                "text/html;; x-java-content-handler=com.sun.mail.handlers.text_html"
+            );
+            mc.addMailcap(
+                "text/xml;; x-java-content-handler=com.sun.mail.handlers.text_xml"
+            );
+            mc.addMailcap(
+                "image/*;; x-java-content-handler=com.sun.mail.handlers.image_inet"
+            );
+            mc.addMailcap(
+                "multipart/*;; x-java-content-handler=com.sun.mail.handlers.multipart_mixed"
+            );
+            mc.addMailcap(
+                "message/rfc822;; x-java-content-handler=com.sun.mail.handlers.message_rfc822"
+            );
+        } catch (final Exception e) {
+            // ignore
+        }
+    }
+
     private final MailConfig mailConfig;
 
     private Session session;
@@ -76,17 +103,6 @@ public final class EmailClient {
         } catch (final Exception e) {
             log.error("Failed to connect to mail server: {}", e.getMessage(), e);
             return false;
-        }
-    }
-
-    public void disconnect() {
-        try {
-            if (store != null && store.isConnected()) {
-                store.close();
-                log.info("Disconnected from mail server");
-            }
-        } catch (final Exception e) {
-            log.error("Error disconnecting", e);
         }
     }
 
@@ -185,22 +201,40 @@ public final class EmailClient {
             .toList();
     }
 
+    private Multipart getMultipartContent(final Part part)
+            throws IOException, MessagingException {
+        final Object content = part.getContent();
+        if (content instanceof Multipart) {
+            return (Multipart) content;
+        } else if (content instanceof java.io.InputStream) {
+            try {
+                final var dataSource = new jakarta.mail.util.ByteArrayDataSource(
+                    (java.io.InputStream) content,
+                    part.getContentType()
+                );
+                return new jakarta.mail.internet.MimeMultipart(dataSource);
+            } catch (final Exception e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     private boolean hasAttachments(final Part part) throws IOException, MessagingException {
         if (part.isMimeType("multipart/*")) {
-            final Multipart mp = (Multipart) part.getContent();
-            for (int i = 0; i < mp.getCount(); i++) {
-                if (hasAttachments(mp.getBodyPart(i))) {
-                    return true;
+            final Multipart mp = getMultipartContent(part);
+            if (mp != null) {
+                for (int i = 0; i < mp.getCount(); i++) {
+                    if (hasAttachments(mp.getBodyPart(i))) {
+                        return true;
+                    }
                 }
             }
             return false;
         }
 
-        final String disposition = part.getDisposition();
-        final boolean isAttachment = Part.ATTACHMENT.equalsIgnoreCase(disposition)
-            || Part.INLINE.equalsIgnoreCase(disposition)
-            || part.getFileName() != null;
-        return isAttachment && FileTypes.isSupported(part.getFileName());
+        final String filename = part.getFileName();
+        return filename != null && FileTypes.isSupported(decodeHeader(filename));
     }
 
     private List<File> saveAttachments(final Message msg) throws IOException, MessagingException {
@@ -216,30 +250,27 @@ public final class EmailClient {
             final File tempDir,
             final List<File> attachments) throws IOException, MessagingException {
         if (part.isMimeType("multipart/*")) {
-            final Multipart mp = (Multipart) part.getContent();
-            for (int i = 0; i < mp.getCount(); i++) {
-                saveAttachments(mp.getBodyPart(i), tempDir, attachments);
+            final Multipart mp = getMultipartContent(part);
+            if (mp != null) {
+                for (int i = 0; i < mp.getCount(); i++) {
+                    saveAttachments(mp.getBodyPart(i), tempDir, attachments);
+                }
             }
             return;
         }
 
-        final String disposition = part.getDisposition();
-        final String filename = decodeHeader(part.getFileName());
-        final boolean isAttachment = Part.ATTACHMENT.equalsIgnoreCase(disposition)
-            || Part.INLINE.equalsIgnoreCase(disposition)
-            || filename != null;
-        if (!isAttachment) {
+        final String rawFilename = part.getFileName();
+        if (rawFilename == null) {
             return;
         }
 
+        final String filename = decodeHeader(rawFilename);
         if (!FileTypes.isSupported(filename)) {
-            if (filename != null) {
-                log.info("Skipping unsupported attachment: {}", filename);
-            }
+            log.info("Skipping unsupported attachment: {}", filename);
             return;
         }
 
-        final File file = new File(tempDir, sanitizeFilename(filename));
+        final File file = uniqueFile(tempDir, sanitizeFilename(filename));
         try (var fos = Files.newOutputStream(file.toPath())) {
             part.getInputStream().transferTo(fos);
         }
@@ -277,5 +308,20 @@ public final class EmailClient {
 
     private String sanitizeFilename(final String filename) {
         return filename.replaceAll("[<>:\"/\\\\|?*]", "_");
+    }
+
+    /**
+     * Returns a file in {@code dir} named {@code filename}, or {@code name (n).ext} if that name is
+     * already taken, so two attachments with the same name in one message don't overwrite each other.
+     */
+    private File uniqueFile(final File dir, final String filename) {
+        File file = new File(dir, filename);
+        final int dot = filename.lastIndexOf('.');
+        final String base = dot > 0 ? filename.substring(0, dot) : filename;
+        final String ext = dot > 0 ? filename.substring(dot) : "";
+        for (int i = 2; file.exists(); i++) {
+            file = new File(dir, base + " (" + i + ")" + ext);
+        }
+        return file;
     }
 }

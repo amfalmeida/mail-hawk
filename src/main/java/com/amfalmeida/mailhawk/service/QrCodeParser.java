@@ -1,7 +1,7 @@
 package com.amfalmeida.mailhawk.service;
 
-import com.amfalmeida.mailhawk.model.InvoiceContent;
-import com.amfalmeida.mailhawk.model.InvoiceContent.Taxable;
+import com.amfalmeida.mailhawk.email.model.InvoiceContent;
+import com.amfalmeida.mailhawk.email.model.InvoiceContent.Taxable;
 import com.google.zxing.BinaryBitmap;
 import com.google.zxing.DecodeHintType;
 import com.google.zxing.MultiFormatReader;
@@ -13,11 +13,18 @@ import com.google.zxing.multi.GenericMultipleBarcodeReader;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDResources;
 import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
 
+import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -25,14 +32,22 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @ApplicationScoped
 @Slf4j
 public final class QrCodeParser {
 
     private static final String INNER_TOKEN = ":";
+    private static final int[] RENDER_DPIS = {250, 400};
+    private static final Map<DecodeHintType, Object> DECODE_HINTS = Map.of(
+        DecodeHintType.TRY_HARDER, Boolean.TRUE,
+        DecodeHintType.ALSO_INVERTED, Boolean.TRUE,
+        DecodeHintType.POSSIBLE_FORMATS, List.of(BarcodeFormat.QR_CODE)
+    );
     private static final DateTimeFormatter[] DATE_FORMATS = {
         DateTimeFormatter.ofPattern("yyyyMMdd"),
         DateTimeFormatter.ofPattern("yyyy-MM-dd"),
@@ -170,33 +185,64 @@ public final class QrCodeParser {
     }
 
     private List<String> tryExtractFromPdf(final File file, final String password) throws IOException {
-        final List<String> qrCodes = new ArrayList<>();
+        try (PDDocument document = password != null && !password.isEmpty()
+                ? Loader.loadPDF(file, password)
+                : Loader.loadPDF(file)) {
+            final List<String> embedded = extractQrCodesFromEmbeddedImages(document);
+            if (!embedded.isEmpty()) {
+                log.debug("Found {} QR codes in embedded PDF images", embedded.size());
+                return embedded;
+            }
+            return extractQrCodesFromRenderedPages(document);
+        }
+    }
 
-        final PDDocument document = password != null && !password.isEmpty()
-            ? Loader.loadPDF(file, password)
-            : Loader.loadPDF(file);
-
-        try {
-            final PDFRenderer renderer = new PDFRenderer(document);
-            final int[] dpis = {250, 400};
-
-            for (final int dpi : dpis) {
-                if (!qrCodes.isEmpty()) {
-                    break;
-                }
-                for (int pageIndex = 0; pageIndex < document.getNumberOfPages(); pageIndex++) {
-                    try {
-                        final BufferedImage image = renderer.renderImageWithDPI(pageIndex, dpi);
-                        qrCodes.addAll(extractQrCodesFromImage(image));
-                    } catch (final Exception e) {
-                        log.debug("Failed to render page {} at {} DPI: {}", pageIndex, dpi, e.getMessage());
+    /**
+     * Fast path: scans the image objects embedded in each page. Most invoice QR codes are embedded
+     * images, and decoding them avoids rendering the page, which dominates the cost on long PDFs.
+     */
+    private List<String> extractQrCodesFromEmbeddedImages(final PDDocument document) {
+        final Set<String> qrCodes = new LinkedHashSet<>();
+        for (final PDPage page : document.getPages()) {
+            final PDResources resources = page.getResources();
+            if (resources == null) {
+                continue;
+            }
+            for (final COSName name : resources.getXObjectNames()) {
+                try {
+                    if (resources.getXObject(name) instanceof PDImageXObject image) {
+                        qrCodes.addAll(scanImage(image.getImage()));
                     }
+                } catch (final Exception e) {
+                    log.debug("Failed to read embedded image {}: {}", name.getName(), e.getMessage());
                 }
             }
-        } finally {
-            document.close();
         }
+        return new ArrayList<>(qrCodes);
+    }
 
+    /**
+     * Slow path for QR codes drawn as vector graphics or nested in form objects: renders every page,
+     * retrying at a higher DPI if nothing was found.
+     */
+    private List<String> extractQrCodesFromRenderedPages(final PDDocument document) {
+        final List<String> qrCodes = new ArrayList<>();
+        final PDFRenderer renderer = new PDFRenderer(document);
+        renderer.setSubsamplingAllowed(true);
+
+        for (final int dpi : RENDER_DPIS) {
+            if (!qrCodes.isEmpty()) {
+                break;
+            }
+            for (int pageIndex = 0; pageIndex < document.getNumberOfPages(); pageIndex++) {
+                try {
+                    final BufferedImage image = renderer.renderImageWithDPI(pageIndex, dpi, ImageType.GRAY);
+                    qrCodes.addAll(extractQrCodesFromImage(image));
+                } catch (final Exception e) {
+                    log.debug("Failed to render page {} at {} DPI: {}", pageIndex, dpi, e.getMessage());
+                }
+            }
+        }
         return qrCodes;
     }
 
@@ -238,15 +284,10 @@ public final class QrCodeParser {
                 )
             );
 
-            final Map<DecodeHintType, Object> hints = new HashMap<>();
-            hints.put(DecodeHintType.TRY_HARDER, Boolean.TRUE);
-            hints.put(DecodeHintType.ALSO_INVERTED, Boolean.TRUE);
-            hints.put(DecodeHintType.POSSIBLE_FORMATS, List.of(BarcodeFormat.QR_CODE));
-
             final MultiFormatReader reader = new MultiFormatReader();
             final GenericMultipleBarcodeReader multiReader = new GenericMultipleBarcodeReader(reader);
 
-            final Result[] results = multiReader.decodeMultiple(bitmap, hints);
+            final Result[] results = multiReader.decodeMultiple(bitmap, DECODE_HINTS);
 
             for (final Result result : results) {
                 if (result.getText() != null && !result.getText().isEmpty()) {
@@ -260,35 +301,33 @@ public final class QrCodeParser {
         return qrCodes;
     }
 
+    /**
+     * Returns a grayscale copy of {@code image} with its gray levels stretched to the full 0-255 range.
+     * Works on the raster bytes directly; per-pixel getRGB/setRGB is far slower on large renders.
+     */
     private static BufferedImage enhanceContrast(final BufferedImage image) {
-        final int w = image.getWidth();
-        final int h = image.getHeight();
-        final BufferedImage result = new BufferedImage(w, h, BufferedImage.TYPE_BYTE_GRAY);
-        result.getGraphics().drawImage(image, 0, 0, null);
+        final BufferedImage result = new BufferedImage(
+            image.getWidth(), image.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
+        final Graphics2D graphics = result.createGraphics();
+        try {
+            graphics.drawImage(image, 0, 0, null);
+        } finally {
+            graphics.dispose();
+        }
 
+        final byte[] pixels = ((DataBufferByte) result.getRaster().getDataBuffer()).getData();
         int min = 255;
         int max = 0;
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                final int gray = result.getRGB(x, y) & 0xFF;
-                if (gray < min) {
-                    min = gray;
-                }
-                if (gray > max) {
-                    max = gray;
-                }
-            }
+        for (final byte pixel : pixels) {
+            final int gray = pixel & 0xFF;
+            min = Math.min(min, gray);
+            max = Math.max(max, gray);
         }
 
         final int range = max - min;
         if (range > 0 && range < 255) {
-            for (int y = 0; y < h; y++) {
-                for (int x = 0; x < w; x++) {
-                    final int gray = result.getRGB(x, y) & 0xFF;
-                    final int stretched = (gray - min) * 255 / range;
-                    final int rgb = (stretched << 16) | (stretched << 8) | stretched;
-                    result.setRGB(x, y, rgb);
-                }
+            for (int i = 0; i < pixels.length; i++) {
+                pixels[i] = (byte) (((pixels[i] & 0xFF) - min) * 255 / range);
             }
         }
 

@@ -1,4 +1,4 @@
-package com.amfalmeida.mailhawk.model;
+package com.amfalmeida.mailhawk.email.model;
 
 public record SheetsResult(Status status, String message) {
     public enum Status {

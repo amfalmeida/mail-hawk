@@ -2,7 +2,7 @@ package com.amfalmeida.mailhawk.email;
 
 import com.amfalmeida.common.MdcSetter;
 import com.amfalmeida.mailhawk.config.MailConfig;
-import com.amfalmeida.mailhawk.model.Invoice;
+import com.amfalmeida.mailhawk.email.model.Invoice;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import jakarta.annotation.PostConstruct;
@@ -25,7 +25,7 @@ import java.util.function.Consumer;
 /**
  * Email processing pipeline: opens the configured folder, searches and filters
  * messages, and processes each one while avoiding duplicates across runs.
- * Scheduling belongs to {@link MailService}; low-level email access belongs to
+ * Scheduling belongs to {@link com.amfalmeida.mailhawk.service.EmailService}; low-level email access belongs to
  * {@link EmailClient}.
  */
 @Slf4j
@@ -46,24 +46,30 @@ public final class EmailProcessor {
             .build();
     }
 
-    public List<Invoice> checkAndProcessEmails(
+    public Optional<List<Invoice>> checkAndProcessEmails(
             final Consumer<Invoice> invoiceCallback,
             final Consumer<Invoice> processCallback) {
         return checkAndProcessEmails(invoiceCallback, processCallback, null);
     }
 
-    public List<Invoice> checkAndProcessEmails(
+    /**
+     * Searches the configured folder and processes matching messages.
+     *
+     * @return the extracted invoices, or empty if the folder could not be checked
+     *         (connection or search failure), so callers can avoid advancing their search window
+     */
+    public Optional<List<Invoice>> checkAndProcessEmails(
             final Consumer<Invoice> invoiceCallback,
             final Consumer<Invoice> processCallback,
             final LocalDateTime lastCheckedAt) {
         if (!ensureConnected()) {
-            return List.of();
+            return Optional.empty();
         }
 
         final List<Invoice> invoices = new ArrayList<>();
         Folder folder = null;
 
-        try {
+        try (MdcSetter ignored = new MdcSetter(UUID.randomUUID().toString())) {
             folder = emailClient.getStore().getFolder(mailConfig.folder());
             folder.open(Folder.READ_ONLY);
 
@@ -84,11 +90,12 @@ public final class EmailProcessor {
             }
         } catch (final Exception e) {
             log.error("Error checking emails", e);
+            return Optional.empty();
         } finally {
             closeFolder(folder);
         }
 
-        return invoices;
+        return Optional.of(invoices);
     }
 
     private boolean ensureConnected() {
@@ -99,7 +106,7 @@ public final class EmailProcessor {
             final Message msg,
             final Consumer<Invoice> invoiceCallback,
             final Consumer<Invoice> processCallback) {
-        try (MdcSetter ignored = new MdcSetter(UUID.randomUUID().toString())) {
+        try {
             final String messageId = emailClient.getMessageId(msg);
 
             if (processedMessageIds.getIfPresent(messageId) != null) {

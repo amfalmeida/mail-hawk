@@ -5,16 +5,15 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 
-import com.amfalmeida.mailhawk.db.entity.ProcessedInvoice;
-import com.amfalmeida.mailhawk.model.Invoice;
-import com.amfalmeida.mailhawk.model.InvoiceContent;
-import com.amfalmeida.mailhawk.model.InvoiceType;
-import com.amfalmeida.mailhawk.model.RecurrentBill;
+import com.amfalmeida.mailhawk.email.model.Invoice;
+import com.amfalmeida.mailhawk.email.model.InvoiceContent;
+import com.amfalmeida.mailhawk.email.model.InvoiceType;
+import com.amfalmeida.mailhawk.email.model.RecurrentBill;
+import com.amfalmeida.mailhawk.email.model.SheetsResult;
 
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,6 +24,7 @@ public class RecurrentBillService {
 
     private final SheetsService sheetsService;
     private final ActualBudgetService actualBudgetService;
+    private final ProcessedInvoiceCache processedInvoiceCache;
 
     @Scheduled(every = "${app.recurrent-check-interval:360}s", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void processRecurrentBills() {
@@ -38,8 +38,9 @@ public class RecurrentBillService {
             for (RecurrentBill bill : bills) {
                 try {
                     if (shouldProcess(bill)) {
-                        processBill(bill);
-                        processed++;
+                        if (processBill(bill)) {
+                            processed++;
+                        }
                     } else {
                         skipped++;
                     }
@@ -76,25 +77,33 @@ public class RecurrentBillService {
         }
 
         String invoiceId = generateInvoiceId(bill.entityName());
-        if (ProcessedInvoice.findByRawQrHash(invoiceId) != null) {
+        if (processedInvoiceCache.isProcessed("RECURRENT:" + invoiceId)) {
             return false;
         }
 
         return true;
     }
 
-    private void processBill(final RecurrentBill bill) {
+    /**
+     * Adds the bill to the spreadsheet and, only if that succeeded (or the row already exists),
+     * imports it into Actual Budget and marks it processed. On a Sheets error the bill is left
+     * unmarked so the next run retries it.
+     */
+    private boolean processBill(final RecurrentBill bill) {
         log.info("Processing recurrent bill: {}", bill.entityName());
 
-        Invoice invoice = createInvoice(bill);
+        final Invoice invoice = createInvoice(bill);
 
-        sheetsService.addInvoice(invoice);
-
-        if (actualBudgetService.isEnabled()) {
-            actualBudgetService.importInvoices(List.of(invoice));
+        final SheetsResult result = sheetsService.addInvoice(invoice);
+        if (result.status() == SheetsResult.Status.ERROR) {
+            log.warn("Recurrent bill not added to spreadsheet, will retry: {} - {}",
+                bill.entityName(), result.message());
+            return false;
         }
 
-        saveProcessedInvoice(bill, invoice);
+        actualBudgetService.importInvoices(List.of(invoice));
+        processedInvoiceCache.markProcessed(invoice.getInvoiceContent().getRaw());
+        return true;
     }
 
     private Invoice createInvoice(final RecurrentBill bill) {
@@ -136,23 +145,5 @@ public class RecurrentBillService {
 
     private String generateInvoiceId(final String entityName) {
         return "REC-" + entityName.replaceAll("[^a-zA-Z0-9]", "") + "-" + YearMonth.now().toString();
-    }
-
-    @Transactional
-    void saveProcessedInvoice(final RecurrentBill bill, final Invoice invoice) {
-        ProcessedInvoice processed = new ProcessedInvoice();
-        processed.rawQrHash = invoice.getId();
-        processed.atcud = invoice.getId();
-        processed.processedAt = java.time.LocalDateTime.now();
-        processed.invoiceId = invoice.getId();
-        processed.invoiceDate = invoice.getDate().toString();
-        processed.issuerName = bill.entityName();
-        processed.issuerNif = bill.nif();
-        processed.customerNif = bill.customerNif();
-        processed.total = bill.value();
-        processed.fromEmail = bill.entityEmail();
-        processed.fromName = bill.entityName();
-        processed.subject = invoice.getSubject();
-        processed.persist();
     }
 }

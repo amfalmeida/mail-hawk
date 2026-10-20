@@ -2,9 +2,10 @@ package com.amfalmeida.mailhawk.service;
 
 import com.amfalmeida.mailhawk.client.ActualBudgetClient;
 import com.amfalmeida.mailhawk.config.ActualConfig;
-import com.amfalmeida.mailhawk.dto.TransactionDto;
-import com.amfalmeida.mailhawk.dto.TransactionImportRequest;
-import com.amfalmeida.mailhawk.model.Invoice;
+import com.amfalmeida.mailhawk.client.dto.TransactionDto;
+import com.amfalmeida.mailhawk.client.dto.TransactionImportRequest;
+import com.amfalmeida.mailhawk.email.model.Invoice;
+import com.amfalmeida.mailhawk.email.model.InvoiceContent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,7 @@ public class ActualBudgetService {
     @RestClient
     ActualBudgetClient client;
 
-    public boolean isEnabled() {
+    private boolean isEnabled() {
         return config.enabled().orElse(false);
     }
 
@@ -84,7 +85,7 @@ public class ActualBudgetService {
 
         String payeeName = invoiceType != null ? invoiceType.name() : null;
         String notes = invoice.getFilename();
-        String importedId = invoiceContent != null ? invoiceContent.getAtcud() : null;
+        String importedId = importedId(invoiceContent);
 
         return new TransactionDto(
             config.accountId().get(),
@@ -96,5 +97,21 @@ public class ActualBudgetService {
             importedId,
             true
         );
+    }
+
+    /**
+     * Key Actual Budget uses to skip duplicate imports. Uses the ATCUD when it's a real code;
+     * otherwise (missing, or "0" which the AT spec allows when there is no ATCUD, and recurrent
+     * bills) falls back to the raw QR string, which is unique per invoice.
+     */
+    private static String importedId(final InvoiceContent invoiceContent) {
+        if (invoiceContent == null) {
+            return null;
+        }
+        final String atcud = invoiceContent.getAtcud();
+        if (atcud != null && !atcud.isBlank() && !"0".equals(atcud.trim())) {
+            return atcud;
+        }
+        return invoiceContent.getRaw();
     }
 }

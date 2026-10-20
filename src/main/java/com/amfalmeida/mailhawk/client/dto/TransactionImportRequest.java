@@ -1,4 +1,4 @@
-package com.amfalmeida.mailhawk.dto;
+package com.amfalmeida.mailhawk.client.dto;
 
 import java.util.List;
 

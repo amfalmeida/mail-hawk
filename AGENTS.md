@@ -58,19 +58,16 @@ src/main/java/com/amfalmeida/mailhawk/
 │   ├── RecurrentBill.java      # Recurrent bill model
 │   └── SheetsResult.java
 ├── service/           # Business services
-│   ├── MailService.java         # Scheduled email check job (scheduling only)
+│   ├── EmailService.java        # Scheduled email check job (scheduling only)
 │   ├── ApplicationInfo.java     # Startup logging of version from git.properties
 │   ├── SearchTermBuilder.java   # IMAP search term construction
 │   ├── InvoiceProcessor.java    # Invoice processing pipeline
 │   ├── RecurrentBillService.java # Recurrent bill processing (scheduled)
 │   ├── SheetsService.java      # Google Sheets integration
-│   ├── DatabaseService.java    # SQLite/MariaDB operations
+│   ├── ProcessedInvoiceCache.java # Caffeine cache of processed invoices (24h TTL)
 │   ├── ActualBudgetService.java # Actual Budget transaction import
 │   └── QrCodeParser.java       # QR code and PDF parsing
-├── db/                # Panache entities
-│   ├── ProcessedInvoice.java
-│   └── InvoiceConfig.java
-└── health/            # Health checks (SchedulerHealthCheck)
+└── health/            # Health checks (SchedulerHealthCheck = liveness, MailConnectionHealthCheck = readiness)
 ```
 
 ## Key Dependencies

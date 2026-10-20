@@ -1,4 +1,4 @@
-package com.amfalmeida.mailhawk.model;
+package com.amfalmeida.mailhawk.email.model;
 
 import lombok.Builder;
 import lombok.Data;

@@ -1,7 +1,7 @@
 package com.amfalmeida.mailhawk.email;
 
 import com.amfalmeida.mailhawk.config.MailConfig;
-import com.amfalmeida.mailhawk.model.Invoice;
+import com.amfalmeida.mailhawk.email.model.Invoice;
 import jakarta.mail.Message;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
@@ -126,6 +126,48 @@ class EmailClientTest {
         --mixed_01--
         """;
 
+    private static final String EMAIL_WITH_DUPLICATE_FILENAMES = """
+        MIME-Version: 1.0
+        Date: Fri, 02 Oct 2026 10:00:00 +0100
+        Message-ID: <msg-with-duplicates@example.com>
+        From: sender@example.com
+        To: recipient@example.com
+        Subject: Faturas
+        Content-Type: multipart/mixed; boundary="mixed_02"
+
+        --mixed_02
+        Content-Type: application/pdf; name="invoice.pdf"
+        Content-Transfer-Encoding: base64
+        Content-Disposition: attachment; filename="invoice.pdf"
+
+        JVBERi0xLjM=
+        --mixed_02
+        Content-Type: application/pdf; name="invoice.pdf"
+        Content-Transfer-Encoding: base64
+        Content-Disposition: attachment; filename="invoice.pdf"
+
+        JVBERi0xLjQ=
+        --mixed_02--
+        """;
+
+    private static final String EMAIL_WITH_ENCODED_FILENAME = """
+        MIME-Version: 1.0
+        Date: Fri, 02 Oct 2026 10:00:00 +0100
+        Message-ID: <msg-with-encoded-name@example.com>
+        From: sender@example.com
+        To: recipient@example.com
+        Subject: Fatura
+        Content-Type: multipart/mixed; boundary="mixed_03"
+
+        --mixed_03
+        Content-Type: application/pdf
+        Content-Transfer-Encoding: base64
+        Content-Disposition: attachment; filename="=?UTF-8?Q?fatura_n=C2=BA1.pdf?="
+
+        JVBERi0xLjM=
+        --mixed_03--
+        """;
+
     private static final String EMAIL_PLAIN_TEXT = """
         MIME-Version: 1.0
         Date: Fri, 02 Oct 2026 10:00:00 +0100
@@ -205,6 +247,13 @@ class EmailClientTest {
         }
 
         @Test
+        @DisplayName("Should detect PDF whose filename is RFC 2047 encoded")
+        void shouldDetectPdfWithEncodedFilename() throws Exception {
+            final Message msg = parseMessage(EMAIL_WITH_ENCODED_FILENAME);
+            assertTrue(emailClient.hasAttachments(msg), "Encoded '.pdf' filename must be decoded before the check");
+        }
+
+        @Test
         @DisplayName("Should return false for plain text message without attachments")
         void shouldReturnFalseForPlainTextMessage() throws Exception {
             final Message msg = parseMessage(EMAIL_PLAIN_TEXT);
@@ -259,6 +308,20 @@ class EmailClientTest {
 
             assertEquals(1, invoices.size());
             assertEquals("invoice.pdf", invoices.get(0).getFilename());
+        }
+
+        @Test
+        @DisplayName("Should keep both attachments when they share a filename")
+        void shouldKeepBothAttachmentsWithSameFilename() throws Exception {
+            final Message msg = parseMessage(EMAIL_WITH_DUPLICATE_FILENAMES);
+
+            final List<Invoice> invoices = emailClient.extractInvoices(msg);
+
+            assertEquals(2, invoices.size());
+            assertEquals("invoice.pdf", invoices.get(0).getFilename());
+            assertEquals("invoice (2).pdf", invoices.get(1).getFilename());
+            assertEquals("%PDF-1.3", Files.readString(new File(invoices.get(0).getFilePath()).toPath()));
+            assertEquals("%PDF-1.4", Files.readString(new File(invoices.get(1).getFilePath()).toPath()));
         }
 
         @Test

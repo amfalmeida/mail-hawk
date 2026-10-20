@@ -1,7 +1,7 @@
 package com.amfalmeida.mailhawk.client;
 
-import com.amfalmeida.mailhawk.dto.TransactionDto;
-import com.amfalmeida.mailhawk.dto.TransactionImportRequest;
+import com.amfalmeida.mailhawk.client.dto.TransactionDto;
+import com.amfalmeida.mailhawk.client.dto.TransactionImportRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

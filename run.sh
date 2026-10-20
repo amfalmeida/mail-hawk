@@ -28,21 +28,19 @@ export MAIL_SUBJECT_TERMS="$(get_config 'mail_subject_terms' 'MAIL_SUBJECT_TERMS
 export MAIL_ONLY_ATTACHMENTS="$(get_config 'mail_listener_only_attachments' 'MAIL_ONLY_ATTACHMENTS')"
 export MAIL_PDF_PASSWORDS="$(get_config 'pdf_passwords' 'MAIL_PDF_PASSWORDS')"
 export MAIL_MESSAGE_CACHE_EXPIRE_SECONDS="$(get_config 'mail_message_cache_expire_seconds' 'MAIL_MESSAGE_CACHE_EXPIRE_SECONDS')"
+export MAIL_MIN_ATTACHMENT_SIZE="$(get_config 'mail_min_attachment_size' 'MAIL_MIN_ATTACHMENT_SIZE')"
 export APP_CHECK_INTERVAL="$(get_config 'check_interval' 'APP_CHECK_INTERVAL')"
 export APP_CONFIG_SYNC_INTERVAL="$(get_config 'config_sync_interval' 'APP_CONFIG_SYNC_INTERVAL')"
 export APP_RECURRENT_CHECK_INTERVAL="$(get_config 'recurrent_check_interval' 'APP_RECURRENT_CHECK_INTERVAL')"
 export APP_DEFAULT_INVOICE_TYPE="$(get_config 'invoice_type_default' 'APP_DEFAULT_INVOICE_TYPE')"
+export APP_PROCESSED_INVOICE_CACHE_HOURS="$(get_config 'processed_invoice_cache_hours' 'APP_PROCESSED_INVOICE_CACHE_HOURS')"
+export APP_LAST_CHECKED_CACHE_HOURS="$(get_config 'last_checked_cache_hours' 'APP_LAST_CHECKED_CACHE_HOURS')"
+export APP_CONFIG_CACHE_HOURS="$(get_config 'config_cache_hours' 'APP_CONFIG_CACHE_HOURS')"
 export SHEETS_ID="$(get_config 'spreadsheet_id' 'SHEETS_ID')"
 export SHEETS_SHEET_NAME="$(get_config 'spreadsheet_sheet' 'SHEETS_SHEET_NAME')"
 export SHEETS_CONFIG_SHEET="$(get_config 'spreadsheet_sheet_db' 'SHEETS_CONFIG_SHEET')"
 export SHEETS_RECURRENT_SHEET="$(get_config 'spreadsheet_sheet_recurrent' 'SHEETS_RECURRENT_SHEET')"
 export SHEETS_ENCODED_CREDENTIALS="$(get_config 'google_auth_encoded' 'SHEETS_ENCODED_CREDENTIALS')"
-
-# Database Configuration
-export DB_TYPE="$(get_config 'db_type' 'DB_TYPE')"
-export DB_URL="$(get_config 'db_url' 'DB_URL')"
-export DB_USERNAME="$(get_config 'db_username' 'DB_USERNAME')"
-export DB_PASSWORD="$(get_config 'db_password' 'DB_PASSWORD')"
 
 # Actual Budget Configuration
 export ACTUAL_ENABLED="$(get_config 'actual_enabled' 'ACTUAL_ENABLED')"
@@ -50,16 +48,6 @@ export ACTUAL_URL="$(get_config 'actual_url' 'ACTUAL_URL')"
 export ACTUAL_API_KEY="$(get_config 'actual_api_key' 'ACTUAL_API_KEY')"
 export ACTUAL_BUDGET_SYNC_ID="$(get_config 'actual_budget_sync_id' 'ACTUAL_BUDGET_SYNC_ID')"
 export ACTUAL_ACCOUNT_ID="$(get_config 'actual_account_id' 'ACTUAL_ACCOUNT_ID')"
-
-# SQLite-specific: ensure directory exists
-if [ "$DB_TYPE" = "sqlite" ] || [ -z "$DB_TYPE" ]; then
-    DB_PATH="${DB_URL#jdbc:sqlite:}"
-    DB_DIR=$(dirname "$DB_PATH")
-    if [ ! -d "$DB_DIR" ]; then
-        echo "Creating database directory: $DB_DIR"
-        mkdir -p "$DB_DIR"
-    fi
-fi
 
 echo "Starting Mail Hawk..."
 exec java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 \

@@ -193,6 +193,10 @@ make setup             # Create .env from .env.example
 | `APP_CONFIG_SYNC_INTERVAL` | Config sync interval in seconds | `300` |
 | `APP_DEFAULT_INVOICE_TYPE` | Default invoice type | `other` |
 | `APP_RECURRENT_CHECK_INTERVAL` | Recurrent bills check interval in seconds | `360` |
+| `APP_PROCESSED_INVOICE_CACHE_HOURS` | How long processed invoices are remembered in memory | `24` |
+| `APP_PROCESSED_INVOICE_CACHE_SIZE` | Max processed invoices kept in memory | `10000` |
+| `APP_CONFIG_CACHE_HOURS` | How long invoice-type configs (by NIF/email) are cached in memory | `1` |
+| `APP_LAST_CHECKED_CACHE_HOURS` | How long the last email check time is remembered; after that, `MAIL_DAYS_OLDER` is used | `24` |
 
 #### Actual Budget Configuration
 
@@ -355,15 +359,9 @@ ACTUAL_ACCOUNT_ID=your-account-id
 | `check_interval` | Email check interval in seconds | `60` |
 | `config_sync_interval` | Config sync interval in seconds | `300` |
 | `recurrent_check_interval` | Recurrent bills check interval in seconds | `360` |
-
-#### Database Settings
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `db_type` | Database type (`sqlite` or `mariadb`) | `sqlite` |
-| `db_url` | Database URL | `jdbc:sqlite:share/mail_hawk/mail_hawk.db` |
-| `db_username` | Database username (for MariaDB) | - |
-| `db_password` | Database password (for MariaDB) | - |
+| `processed_invoice_cache_hours` | How long processed invoices are remembered in memory | `24` |
+| `last_checked_cache_hours` | How long the last email check time is remembered | `24` |
+| `config_cache_hours` | How long invoice-type configs are cached | `1` |
 
 #### Actual Budget Settings
 

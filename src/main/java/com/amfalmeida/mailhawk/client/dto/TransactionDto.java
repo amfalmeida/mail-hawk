@@ -1,4 +1,4 @@
-package com.amfalmeida.mailhawk.dto;
+package com.amfalmeida.mailhawk.client.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

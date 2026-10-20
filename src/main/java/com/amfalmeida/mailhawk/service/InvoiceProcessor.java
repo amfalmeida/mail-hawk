@@ -5,10 +5,10 @@ import java.util.List;
 
 import com.amfalmeida.mailhawk.config.AppConfig;
 import com.amfalmeida.mailhawk.config.MailConfig;
-import com.amfalmeida.mailhawk.model.Invoice;
-import com.amfalmeida.mailhawk.model.InvoiceContent;
-import com.amfalmeida.mailhawk.model.InvoiceType;
-import com.amfalmeida.mailhawk.model.SheetsResult;
+import com.amfalmeida.mailhawk.email.model.Invoice;
+import com.amfalmeida.mailhawk.email.model.InvoiceContent;
+import com.amfalmeida.mailhawk.email.model.InvoiceType;
+import com.amfalmeida.mailhawk.email.model.SheetsResult;
 
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -22,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 public final class InvoiceProcessor {
 
     private final SheetsService sheetsService;
-    private final DatabaseService databaseService;
+    private final ProcessedInvoiceCache processedInvoiceCache;
     private final QrCodeParser qrCodeParser;
     private final AppConfig appConfig;
     private final MailConfig mailConfig;
@@ -32,10 +32,7 @@ public final class InvoiceProcessor {
     void syncConfigs() {
         log.info("Syncing configs from sheets...");
         try {
-            final List<InvoiceType> configs = sheetsService.getConfigurations();
-            if (!configs.isEmpty()) {
-                databaseService.syncConfigs(configs);
-            }
+            sheetsService.refreshConfigurations();
         } catch (final Exception e) {
             log.error("Error syncing configs from sheets", e);
         }
@@ -72,7 +69,7 @@ public final class InvoiceProcessor {
 
                 log.debug("Parsed QR code: {}", invoiceContent);
 
-                if (databaseService.isInvoiceProcessedByRawQr(invoiceContent.getRaw())) {
+                if (processedInvoiceCache.isProcessed(invoiceContent.getRaw())) {
                     log.info("Invoice already processed: {}", invoiceContent.getInvoiceId());
                     continue;
                 }
@@ -88,33 +85,7 @@ public final class InvoiceProcessor {
                 if (result.status() == SheetsResult.Status.APPENDED ||
                     result.status() == SheetsResult.Status.ALREADY_EXISTS) {
 
-                    databaseService.markInvoiceProcessed(
-                        invoiceContent.getAtcud(),
-                        invoiceContent.getInvoiceId(),
-                        invoiceContent.getInvoiceDate(),
-                        invoiceType.name(),
-                        invoiceContent.getIssuerTin(),
-                        invoiceContent.getCustomerTin(),
-                        invoiceContent.getCustomerCountry(),
-                        invoiceType.type(),
-                        invoiceContent.getStatus(),
-                        invoiceContent.getTotal(),
-                        invoiceContent.getTotalTaxes(),
-                        invoiceContent.getNonTaxable(),
-                        invoiceContent.getStampDuty(),
-                        invoiceContent.getWithholdingTax(),
-                        invoiceContent.getHash(),
-                        invoiceContent.getCertificateNumber(),
-                        invoiceContent.getOtherInformation(),
-                        invoiceContent.getRaw(),
-                        invoice.getSubject(),
-                        invoice.getFromAddress(),
-                        invoice.getFromName(),
-                        invoice.getToAddress(),
-                        invoiceContent.getFirstTaxable(),
-                        invoiceContent.getSecondTaxable(),
-                        invoiceContent.getThirdTaxable()
-                    );
+                    processedInvoiceCache.markProcessed(invoiceContent.getRaw());
 
                     actualBudgetService.importInvoices(List.of(invoice));
                 }

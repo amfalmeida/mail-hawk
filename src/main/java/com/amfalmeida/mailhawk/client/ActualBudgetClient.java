@@ -1,6 +1,6 @@
 package com.amfalmeida.mailhawk.client;
 
-import com.amfalmeida.mailhawk.dto.TransactionImportRequest;
+import com.amfalmeida.mailhawk.client.dto.TransactionImportRequest;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;

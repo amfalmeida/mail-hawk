@@ -1,7 +1,7 @@
 package com.amfalmeida.mailhawk.email;
 
 import com.amfalmeida.mailhawk.config.MailConfig;
-import com.amfalmeida.mailhawk.model.Invoice;
+import com.amfalmeida.mailhawk.email.model.Invoice;
 import jakarta.mail.Folder;
 import jakarta.mail.Message;
 import jakarta.mail.MessagingException;
@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -99,7 +100,7 @@ class EmailProcessorTest {
 
             final List<Invoice> result = emailProcessor.checkAndProcessEmails(
                 inv -> invoiceCalls.incrementAndGet(),
-                inv -> processCalls.incrementAndGet());
+                inv -> processCalls.incrementAndGet()).orElse(List.of());
 
             assertEquals(1, result.size());
             assertEquals(invoice, result.get(0));
@@ -113,9 +114,9 @@ class EmailProcessorTest {
             when(emailClient.isConnected()).thenReturn(false);
             when(emailClient.connect()).thenReturn(false);
 
-            final List<Invoice> result = emailProcessor.checkAndProcessEmails(inv -> {}, inv -> {});
+            final Optional<List<Invoice>> result = emailProcessor.checkAndProcessEmails(inv -> {}, inv -> {});
 
-            assertTrue(result.isEmpty());
+            assertTrue(result.isEmpty(), "A failed check should return empty, not an empty list");
             verify(emailClient, never()).getStore();
         }
 
@@ -139,9 +140,9 @@ class EmailProcessorTest {
             when(emailClient.searchMessages(eq(folder), any()))
                 .thenThrow(new MessagingException("search failed"));
 
-            final List<Invoice> result = emailProcessor.checkAndProcessEmails(inv -> {}, inv -> {});
+            final Optional<List<Invoice>> result = emailProcessor.checkAndProcessEmails(inv -> {}, inv -> {});
 
-            assertTrue(result.isEmpty());
+            assertTrue(result.isEmpty(), "A failed check should return empty, not an empty list");
         }
     }
 
@@ -161,8 +162,8 @@ class EmailProcessorTest {
             when(emailClient.hasAttachments(message)).thenReturn(true);
             when(emailClient.extractInvoices(message)).thenReturn(List.of(invoice));
 
-            final List<Invoice> first = emailProcessor.checkAndProcessEmails(inv -> {}, inv -> {});
-            final List<Invoice> second = emailProcessor.checkAndProcessEmails(inv -> {}, inv -> {});
+            final List<Invoice> first = emailProcessor.checkAndProcessEmails(inv -> {}, inv -> {}).orElse(List.of());
+            final List<Invoice> second = emailProcessor.checkAndProcessEmails(inv -> {}, inv -> {}).orElse(List.of());
 
             assertEquals(1, first.size(), "First run should process the message");
             assertTrue(second.isEmpty(), "Second run should skip the already processed message");
@@ -187,7 +188,7 @@ class EmailProcessorTest {
             final AtomicInteger processCalls = new AtomicInteger();
             final List<Invoice> result = emailProcessor.checkAndProcessEmails(
                 inv -> {},
-                inv -> processCalls.incrementAndGet());
+                inv -> processCalls.incrementAndGet()).orElse(List.of());
 
             assertTrue(result.isEmpty());
             assertEquals(0, processCalls.get(), "processCallback should not fire");
@@ -205,7 +206,7 @@ class EmailProcessorTest {
             when(emailClient.getMessageId(message)).thenReturn("msg-1");
             when(emailClient.extractInvoices(message)).thenReturn(List.of(invoice));
 
-            final List<Invoice> result = emailProcessor.checkAndProcessEmails(inv -> {}, inv -> {});
+            final List<Invoice> result = emailProcessor.checkAndProcessEmails(inv -> {}, inv -> {}).orElse(List.of());
 
             assertEquals(1, result.size(), "Message should be processed even without attachments");
         }
