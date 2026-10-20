@@ -20,7 +20,6 @@ docker build -t mail-hawk-java .
 
 - Use Java 21 features (records, pattern matching)
 - Use Lombok `@Builder` for model classes
-- Use `@Transactional` on methods that modify database (must be non-private)
 - Follow standard Java naming conventions
 - Keep methods focused and under 50 lines
 - Use meaningful variable names
@@ -39,31 +38,29 @@ docker build -t mail-hawk-java .
 src/main/java/com/amfalmeida/mailhawk/
 ├── client/            # REST clients
 │   ├── ActualBudgetClient.java  # Actual Budget HTTP API client
-│   └── JsonLoggingFilter.java   # JSON logging/serialization filter
+│   ├── JsonLoggingFilter.java   # JSON logging/serialization filter
+│   └── dto/                     # TransactionDto, TransactionImportRequest
 ├── config/            # Configuration interfaces (SmallRye Config)
 │   ├── ActualConfig.java        # Actual Budget configuration
 │   ├── AppConfig.java          # Application configuration
 │   ├── MailConfig.java         # Mail configuration (pdfPasswords as List<String>)
 │   └── SheetsConfig.java       # Google Sheets configuration
-├── dto/               # Data transfer objects
-│   ├── TransactionDto.java     # Transaction for Actual Budget
-│   └── TransactionImportRequest.java
 ├── email/             # Email access and processing
 │   ├── EmailClient.java         # IMAP connection, search, subject filtering, invoice extraction
-│   └── EmailProcessor.java      # Email processing pipeline (search → dedupe → extract → callbacks)
-├── model/             # Data models (use @Builder)
-│   ├── Invoice.java            # Invoice with InvoiceContent
-│   ├── InvoiceContent.java      # Invoice data (renamed from QrCodeContent)
-│   ├── InvoiceType.java        # Invoice type configuration
-│   ├── RecurrentBill.java      # Recurrent bill model
-│   └── SheetsResult.java
+│   ├── EmailProcessor.java      # Email processing pipeline (search → dedupe → extract → callbacks)
+│   └── model/                   # Data models (use @Builder)
+│       ├── Invoice.java         # Invoice with InvoiceContent
+│       ├── InvoiceContent.java  # Invoice data (renamed from QrCodeContent)
+│       ├── InvoiceType.java     # Invoice type configuration
+│       ├── RecurrentBill.java   # Recurrent bill model
+│       └── SheetsResult.java
 ├── service/           # Business services
 │   ├── EmailService.java        # Scheduled email check job (scheduling only)
 │   ├── ApplicationInfo.java     # Startup logging of version from git.properties
 │   ├── SearchTermBuilder.java   # IMAP search term construction
 │   ├── InvoiceProcessor.java    # Invoice processing pipeline
 │   ├── RecurrentBillService.java # Recurrent bill processing (scheduled)
-│   ├── SheetsService.java      # Google Sheets integration
+│   ├── SheetsService.java      # Google Sheets integration + invoice-type config caches
 │   ├── ProcessedInvoiceCache.java # Caffeine cache of processed invoices (24h TTL)
 │   ├── ActualBudgetService.java # Actual Budget transaction import
 │   └── QrCodeParser.java       # QR code and PDF parsing
@@ -73,7 +70,8 @@ src/main/java/com/amfalmeida/mailhawk/
 ## Key Dependencies
 
 - Java 21
-- Quarkus 3.19.x
+- Quarkus 3.34.x
+- Caffeine (in-memory caches)
 - Jakarta Mail (IMAP)
 - Google ZXing (QR codes)
 - Apache PDFBox (PDF processing, supports encrypted PDFs with passwords)
@@ -163,11 +161,22 @@ APP_RECURRENT_CHECK_INTERVAL=360
 2. Checks if payment day matches current day
 3. Validates "Until" date (optional, empty = forever)
 4. Creates invoice with ID: `REC-{entityName}-{YYYY-MM}`
-5. Stores in same `processed_invoices` table as regular invoices
+5. Appends to Sheets; only if that didn't fail, imports into Actual Budget and marks it in `ProcessedInvoiceCache`
+   (key `RECURRENT:{invoiceId}`), so a failed Sheets write is retried on the next run
 
-### Database
+### In-memory caches (no database)
 
-- SQLite (default): `DB_TYPE=sqlite`, `DB_URL=jdbc:sqlite:/data/mail_hawk.db`
+There is no database. Deduplication and lookups use Caffeine caches, and Google Sheets is the source of truth:
+
+| Cache | Where | Expiry (config) |
+|-------|-------|-----------------|
+| Processed invoices (SHA-256 of raw QR) | `ProcessedInvoiceCache` | `app.processed-invoice-cache-hours` (24) |
+| Processed message IDs | `EmailProcessor` | `mail.message-cache-expire-seconds` (1800) |
+| Last email check time | `EmailService` | `app.last-checked-cache-hours` (24) |
+| Invoice-type configs by NIF / email | `SheetsService` | `app.config-cache-hours` (1) |
+
+Caches are empty after a restart. The Sheets duplicate check (raw QR in column AD) then prevents duplicate rows,
+and the Actual Budget `imported_id` prevents duplicate transactions.
 
 ### Actual Budget Integration
 
@@ -236,7 +245,8 @@ docker-compose up -d
 
 1. **Lombok + Quarkus**: Use `@RequiredArgsConstructor(onConstructor_ = @Inject)` for constructor injection
 2. **ConfigMapping defaults**: All fields need `@WithDefault("")` or app fails without env vars
-3. **Panache entities**: Use `@Transactional` on **non-private** methods that modify data
+3. **Health checks**: Liveness (`SchedulerHealthCheck`, used by the HA watchdog) must only check the scheduler;
+   IMAP connectivity belongs in readiness (`MailConnectionHealthCheck`) so mail outages don't restart the add-on
 4. **IMAP search**: Date filter works reliably; size filter (`SizeTerm`) is available but may not work on all servers; filter subjects in Java
 5. **REST Client JSON**: Uses `JsonLoggingFilter` with Jackson ObjectMapper for proper serialization
 6. **InvoiceContent**: Previously named `QrCodeContent`, renamed to better reflect its purpose

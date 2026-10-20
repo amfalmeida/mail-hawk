@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/amfalmeida/mail-hawk/actions/workflows/ci.yaml/badge.svg)](https://github.com/amfalmeida/mail-hawk/actions/workflows/ci.yaml)
 [![Java 21](https://img.shields.io/badge/Java-21-orange)](https://openjdk.org/projects/jdk/21/)
-[![Quarkus](https://img.shields.io/badge/Quarkus-3.19-purple)](https://quarkus.io/)
+[![Quarkus](https://img.shields.io/badge/Quarkus-3.34-purple)](https://quarkus.io/)
 [![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 
 <p align="center">
@@ -20,22 +20,22 @@ Monitor email for invoice attachments, parse QR codes and store data in Google S
 - **Recurrent Bills**: Automatically creates invoices from recurring bills configured in Google Sheets
 - **Google Sheets Integration**: Stores invoice data in Google Spreadsheet
 - **Actual Budget Integration**: Automatically imports transactions to Actual Budget
-- **SQLite Database**: Local database for tracking processed invoices
-- **Home Assistant Integration**: SQL sensor for dashboard + add-on support
+- **No Database Needed**: Processed invoices are tracked in in-memory caches; Google Sheets is the source of truth
+- **Home Assistant Add-on**: Runs as a Home Assistant add-on with a health-check watchdog
 - **Performance Optimized**: Low memory footprint with Quarkus native compilation support
 - **Modern Java**: Uses Java 21 features (records, pattern matching)
 
 ## Tech Stack
 
 - **Java 21** - Latest LTS with modern features
-- **Quarkus 3.19.x** - Supersonic subatomic Java framework
+- **Quarkus 3.34.x** - Supersonic subatomic Java framework
 - **Lombok** - Reduce boilerplate code
 - **Jakarta Mail** - IMAP email client
 - **ZXing** - QR code processing
 - **Apache PDFBox** - PDF rendering
 - **Google Sheets API** - Spreadsheet integration
 - **Actual Budget HTTP API** - Budget integration
-- **SQLite** - Local database
+- **Caffeine** - In-memory caches
 
 ## Architecture
 
@@ -48,15 +48,14 @@ graph TB
     end
 
     subgraph Core["Mail Hawk Services"]
-        MailService["MailService<br/>IMAP Fetching"]
+        EmailService["EmailService<br/>IMAP Fetching"]
         InvoiceProcessor["InvoiceProcessor<br/>Orchestrator"]
         QrCodeParser["QrCodeParser<br/>QR/PDF Parsing"]
         RecurrentBillService["RecurrentBillService<br/>Recurring Bills"]
     end
 
     subgraph Storage["Data Layer"]
-        DatabaseService["DatabaseService"]
-        SQLite[("SQLite/MariaDB")]
+        ProcessedInvoiceCache[("ProcessedInvoiceCache<br/>in-memory, 24h")]
         SheetsService["SheetsService"]
     end
 
@@ -66,29 +65,30 @@ graph TB
         CheckRecurrent["processRecurrentBills()<br/>Every 360s"]
     end
 
-    Email -->|IMAP| MailService
-    MailService -->|Attachments| InvoiceProcessor
+    Email -->|IMAP| EmailService
+    EmailService -->|Attachments| InvoiceProcessor
     InvoiceProcessor -->|Parse QR/PDF| QrCodeParser
-    InvoiceProcessor -->|Store| DatabaseService
-    DatabaseService --> SQLite
+    InvoiceProcessor -->|Mark processed| ProcessedInvoiceCache
     InvoiceProcessor -->|Export| SheetsService
     SheetsService -->|Append Row| GSheets
     
     RecurrentBillService -->|Read Bills| SheetsService
     GSheets -->|Recurrent Bills| RecurrentBillService
-    RecurrentBillService -->|Create Invoice| InvoiceProcessor
+    RecurrentBillService -->|Append Row| SheetsService
+    RecurrentBillService -->|Import Transaction| ActualBudgetService
+    RecurrentBillService -->|Mark processed| ProcessedInvoiceCache
     
     InvoiceProcessor -->|Import Transaction| ActualBudgetService
     ActualBudgetService -->|REST API| ActualBudget
 
-    CheckEmails --> MailService
+    CheckEmails --> EmailService
     SyncConfigs --> SheetsService
     CheckRecurrent --> RecurrentBillService
 
-    style MailService fill:#e1f5fe
+    style EmailService fill:#e1f5fe
     style InvoiceProcessor fill:#e8f5e9
     style QrCodeParser fill:#fff3e0
-    style DatabaseService fill:#fce4ec
+    style ProcessedInvoiceCache fill:#fce4ec
     style SheetsService fill:#f3e5f5
 ```
 
@@ -207,15 +207,6 @@ make setup             # Create .env from .env.example
 | `ACTUAL_API_KEY` | API key for authentication | - |
 | `ACTUAL_BUDGET_SYNC_ID` | Budget sync ID | - |
 | `ACTUAL_ACCOUNT_ID` | Account ID for transactions | - |
-
-#### Database Configuration
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DB_TYPE` | Database type (`sqlite` or `mariadb`) | `sqlite` |
-| `DB_URL` | Database connection URL | `jdbc:sqlite:/data/mail_hawk.db` |
-| `DB_USERNAME` | Database username (for MariaDB) | - |
-| `DB_PASSWORD` | Database password (for MariaDB) | - |
 
 ### Docker
 
@@ -390,19 +381,6 @@ ACTUAL_ACCOUNT_ID=your-account-id
 6. Paste the result in `google_auth_encoded`
 7. Share your spreadsheet with the service account email (Editor access)
 
-### Home Assistant SQL Sensor
-
-Create a sensor to query the SQLite database:
-
-```yaml
-sensor:
-  - name: "Invoices This Month"
-    platform: sql
-    db_url: "sqlite:////share/mail_hawk/mail_hawk.db"
-    query: "SELECT COUNT(*) as count FROM processed_invoices WHERE strftime('%Y-%m', invoice_date) = strftime('%Y-%m', 'now')"
-    column: "count"
-```
-
 ## Google Sheets Setup
 
 1. Create a Google Cloud Project
@@ -499,33 +477,37 @@ Defines recurring bills that are automatically processed on their payment day.
 **Processing behavior:**
 - On the configured payment day, an invoice is automatically created
 - Invoice ID format: `REC-{entityName}-{YYYY-MM}`
-- Stored in the same `processed_invoices` table as regular invoices
+- Added to the invoices sheet; only if that didn't fail is it imported into Actual Budget and marked as processed,
+  so a failed Sheets write is retried on the next run
+- Actual Budget deduplicates on `imported_id` (the ATCUD, or the raw QR string when the ATCUD is missing or `0`)
 
 ## Project Structure
 
 ```
-mail-hawk-java/
+mail-hawk/
 ├── pom.xml                    # Maven build config
 ├── Makefile                   # Build commands
 ├── Dockerfile                 # Docker image
 ├── docker-compose.yml         # Docker compose
-├── config.yaml               # Home Assistant add-on config
-├── repository.yaml           # HA repository config
-├── run.sh                    # Startup script
+├── config.yaml                # Home Assistant add-on config
+├── repository.yaml            # HA repository config
+├── run.sh                     # Startup script (maps HA options to env vars)
 ├── src/main/java/com/amfalmeida/mailhawk/
-│   ├── client/               # REST clients (Actual Budget)
-│   ├── config/               # Configuration interfaces
-│   ├── dto/                  # Data transfer objects
-│   ├── model/                # Data models
-│   ├── service/              # Business services
-│   │   ├── MailService.java        # IMAP email fetching
-│   │   ├── InvoiceProcessor.java   # Invoice processing pipeline
-│   │   ├── SheetsService.java      # Google Sheets integration
-│   │   ├── DatabaseService.java    # Database operations
-│   │   ├── ActualBudgetService.java # Actual Budget integration
-│   │   └── QrCodeParser.java       # QR code parsing
-│   ├── db/                   # Database entities
-│   └── health/               # Health checks
+│   ├── client/                # REST client (Actual Budget) + dto/
+│   ├── config/                # Configuration interfaces
+│   ├── email/                 # IMAP access and email pipeline
+│   │   ├── EmailClient.java         # IMAP connection, search, attachment extraction
+│   │   ├── EmailProcessor.java      # Search → dedupe → extract → callbacks
+│   │   └── model/                   # Invoice, InvoiceContent, InvoiceType, ...
+│   ├── service/               # Business services
+│   │   ├── EmailService.java         # Scheduled email check
+│   │   ├── InvoiceProcessor.java     # Invoice processing pipeline
+│   │   ├── RecurrentBillService.java # Scheduled recurrent bills
+│   │   ├── SheetsService.java        # Google Sheets integration
+│   │   ├── ProcessedInvoiceCache.java # In-memory record of processed invoices
+│   │   ├── ActualBudgetService.java  # Actual Budget integration
+│   │   └── QrCodeParser.java         # QR code parsing
+│   └── health/                # Liveness (scheduler) and readiness (IMAP) checks
 └── src/main/resources/
     └── application.properties
 ```

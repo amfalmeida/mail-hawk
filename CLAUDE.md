@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
-AGENTS.md (imported above) holds the code style rules, the configuration reference and the Quarkus/Lombok gotchas.
-This file adds commands and architecture notes that AGENTS.md doesn't cover. Where the two disagree, trust this file.
+AGENTS.md (imported above) holds the code style rules, the package layout, the configuration reference and the
+Quarkus/Lombok gotchas. This file adds commands and the architecture notes that AGENTS.md doesn't cover.
 
 ## Commands
 
@@ -67,13 +67,7 @@ Persistence layers:
   `app.processed-invoice-cache-hours` (default 24), and the size limit is `app.processed-invoice-cache-size`.
   Recurrent bills use the key `RECURRENT:<REC-id>`. The cache is memory-only, so after expiry or a restart the
   Sheets duplicate check is the only safeguard.
-- No database is used. The Hibernate/Panache/Flyway/SQLite stack was removed. The README and AGENTS.md sections
-  on SQLite/MariaDB, `DB_*` vars, `@Transactional`/Panache and the dashboard are stale.
-
-Package layout differs from the AGENTS.md tree:
-- Models live in `email/model/`.
-- REST DTOs live in `client/dto/`.
-- `resource/DashboardResource` and the Qute dashboard template were removed.
+- There is no database and no web UI. Only the `/q/health/*` endpoints are served.
 
 ## Deployment
 
