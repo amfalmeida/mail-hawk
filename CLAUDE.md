@@ -44,6 +44,19 @@ The app runs three independent `@Scheduled` jobs, all with `concurrentExecution 
    It uses the same rule as email invoices: Actual import and the processed mark happen only if the Sheets write didn't
    fail. Actual's `imported_id` is the ATCUD, or the raw QR string when the ATCUD is missing or `"0"`.
 
+**`InvoiceResource`** (`POST /api/invoices`, package `api`) is the REST entry point. It takes JSON (`InvoiceRequest`:
+`date`, `entityName`, `raw`), parses `raw` with `QrCodeParser.parseQrCodeString` and calls
+`InvoiceProcessor.storeInvoice(invoice, entityName)`. A non-blank `entityName` replaces the resolved type's name. The
+request `date` is the invoice's `date`, and the invoice date when the QR has no `F` field. The API key (`X-API-Key`
+header) is checked by `ApiKeyFilter`, a `ContainerRequestFilter` bound through the `@ApiKeyRequired` name binding.
+Put that annotation on any new API resource. Endpoints answer 403 until `app.api-enabled` is true and `app.api-key` is set. The filter is
+`@ApplicationScoped` so it is built lazily: JAX-RS providers are otherwise created during static init, when
+`AppConfig` can't be injected yet (`SRCFG00027`).
+
+Ports: `/q/health/*` runs on the Quarkus management interface (`quarkus.management.port=8080`, fixed because the HA
+watchdog URL is `[PORT:8080]/q/health/live`). The REST API runs on the main HTTP server, `quarkus.http.port` =
+`app.api-port` (default 8081, add-on option `api_port`). `run.sh` falls back to 8081 if `api_port` is set to 8080.
+
 Health: `SchedulerHealthCheck` (liveness, used by the HA watchdog) only checks the scheduler.
 `MailConnectionHealthCheck` (readiness) checks IMAP, which is DOWN until the first email check connects. Keep IMAP
 checks out of liveness, or an IMAP outage will make Home Assistant restart the add-on.
@@ -57,7 +70,8 @@ checks out of liveness, or an IMAP outage will make Home Assistant restart the a
 - Invoices already seen are skipped (keyed by raw QR hash).
 - The `InvoiceType` is resolved: issuer NIF → sender email → `app.default-invoice-type`.
 - The row is appended to Sheets. Only when the result is `APPENDED` or `ALREADY_EXISTS` does it mark the invoice
-  processed and import it into Actual Budget.
+  processed and import it into Actual Budget. The already-seen check, type resolution and this step live in
+  `storeInvoice`, which the REST API also uses. It returns an `InvoiceResult`.
 - The temp attachment file is always deleted in `finally`.
 
 Persistence layers:
@@ -67,7 +81,7 @@ Persistence layers:
   `app.processed-invoice-cache-hours` (default 24), and the size limit is `app.processed-invoice-cache-size`.
   Recurrent bills use the key `RECURRENT:<REC-id>`. The cache is memory-only, so after expiry or a restart the
   Sheets duplicate check is the only safeguard.
-- There is no database and no web UI. Only the `/q/health/*` endpoints are served.
+- There is no database and no web UI. Only `/q/health/*` (port 8080) and `POST /api/invoices` (`app.api-port`) are served.
 
 ## Deployment
 

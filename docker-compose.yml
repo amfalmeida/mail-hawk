@@ -9,6 +9,7 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
+      - "8081:8081"
     env_file:
       - .env
     volumes:

@@ -36,6 +36,13 @@ export APP_DEFAULT_INVOICE_TYPE="$(get_config 'invoice_type_default' 'APP_DEFAUL
 export APP_PROCESSED_INVOICE_CACHE_HOURS="$(get_config 'processed_invoice_cache_hours' 'APP_PROCESSED_INVOICE_CACHE_HOURS')"
 export APP_LAST_CHECKED_CACHE_HOURS="$(get_config 'last_checked_cache_hours' 'APP_LAST_CHECKED_CACHE_HOURS')"
 export APP_CONFIG_CACHE_HOURS="$(get_config 'config_cache_hours' 'APP_CONFIG_CACHE_HOURS')"
+export APP_API_ENABLED="$(get_config 'api_enabled' 'APP_API_ENABLED')"
+export APP_API_KEY="$(get_config 'api_key' 'APP_API_KEY')"
+export APP_API_PORT="$(get_config 'api_port' 'APP_API_PORT')"
+if [ "$APP_API_PORT" = "8080" ]; then
+    echo "WARNING: api_port 8080 is reserved for health checks; using 8081 for the API"
+    export APP_API_PORT=8081
+fi
 export SHEETS_ID="$(get_config 'spreadsheet_id' 'SHEETS_ID')"
 export SHEETS_SHEET_NAME="$(get_config 'spreadsheet_sheet' 'SHEETS_SHEET_NAME')"
 export SHEETS_CONFIG_SHEET="$(get_config 'spreadsheet_sheet_db' 'SHEETS_CONFIG_SHEET')"

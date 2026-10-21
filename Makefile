@@ -96,6 +96,7 @@ addon-run: addon-build
 	docker run -d --name mail-hawk-ha \
 		-v /share/mail_hawk:/share/mail_hawk \
 		-p 8080:8080 \
+		-p 8081:8081 \
 		mail-hawk-ha
 
 addon-logs:

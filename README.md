@@ -197,6 +197,9 @@ make setup             # Create .env from .env.example
 | `APP_PROCESSED_INVOICE_CACHE_SIZE` | Max processed invoices kept in memory | `10000` |
 | `APP_CONFIG_CACHE_HOURS` | How long invoice-type configs (by NIF/email) are cached in memory | `1` |
 | `APP_LAST_CHECKED_CACHE_HOURS` | How long the last email check time is remembered; after that, `MAIL_DAYS_OLDER` is used | `24` |
+| `APP_API_ENABLED` | Enable the invoice API (`POST /api/invoices`) | `false` |
+| `APP_API_KEY` | Key callers must send in the `X-API-Key` header. Required when the API is enabled | - |
+| `APP_API_PORT` | Port of the invoice API. Health checks always stay on `8080` | `8081` |
 
 #### Actual Budget Configuration
 
@@ -207,6 +210,44 @@ make setup             # Create .env from .env.example
 | `ACTUAL_API_KEY` | API key for authentication | - |
 | `ACTUAL_BUDGET_SYNC_ID` | Budget sync ID | - |
 | `ACTUAL_ACCOUNT_ID` | Account ID for transactions | - |
+
+### Invoice API
+
+`POST /api/invoices` stores invoices that don't arrive by email. It takes the invoice date, the entity name and the
+raw AT QR code string. It parses the QR string the same way the email check does, then runs the same steps:
+invoice-type resolution, Sheets, Actual Budget and duplicate checks.
+
+To enable it, set `APP_API_ENABLED=true` and an `APP_API_KEY` (add-on options `api_enabled` and `api_key`, see
+[API Settings](#api-settings)). Every request must send the key in the `X-API-Key` header. The API answers 403
+while it is disabled or no key is set.
+
+```bash
+curl -H "X-API-Key: $APP_API_KEY" -H "Content-Type: application/json" \
+  http://localhost:8081/api/invoices -d '{
+    "date": "2026-10-01",
+    "entityName": "Águas do Porto",
+    "raw": "A:123456789*B:999999990*C:PT*D:FT*E:N*F:20261001*G:FT 2026/123*H:ABCD1234-123*I1:PT*I7:10.00*I8:2.30*N:2.30*O:12.30*Q:abcd*R:1234"
+  }'
+```
+
+| Field | Description | Required |
+|-------|-------------|----------|
+| `date` | Invoice date (`yyyy-MM-dd`). Stored in the date column, and used as the invoice date if the QR code has no `F` field | yes |
+| `entityName` | Entity name. Stored in the entity column and used as the Actual Budget payee. When empty, the name from the `config` tab is used | no |
+| `raw` | AT QR code string. Must contain at least `A` (issuer NIF) and `G` (invoice ID) | yes |
+
+The invoice type still comes from the issuer NIF in the `config` tab, falling back to `APP_DEFAULT_INVOICE_TYPE`.
+`raw` is the duplicate-check key, the same as for email invoices.
+
+The response has `invoiceId`, `issuerTin`, `total`, `invoiceType`, `status` and `message`.
+
+| HTTP status | `status` | Meaning |
+|-------------|----------|---------|
+| `201` | `APPENDED` | Added to Sheets (and imported into Actual Budget) |
+| `200` | `ALREADY_EXISTS` / `ALREADY_PROCESSED` | Already in Sheets / already processed recently |
+| `400` | - | Missing `date` or `raw`, or `raw` is not a valid QR code |
+| `401` / `403` | - | Wrong or missing key / API disabled or no key configured |
+| `502` | `ERROR` | Google Sheets write failed; nothing was imported, so it is safe to retry |
 
 ### Docker
 
@@ -222,7 +263,7 @@ make docker-up
 
 The `docker-compose.yml` includes all required services:
 
-1. **mail-hawk** - Invoice processing service (port 8080)
+1. **mail-hawk** - Invoice processing service (health on port 8080, invoice API on port 8081)
 2. **actual-http-api** - Actual Budget HTTP API (port 5007)
 
 ```bash
@@ -253,7 +294,8 @@ services:
 ```
 
 **Service URLs:**
-- Mail Hawk: http://localhost:8080
+- Mail Hawk health: http://localhost:8080/q/health
+- Mail Hawk invoice API: http://localhost:8081/api/invoices
 - Actual Budget HTTP API: http://localhost:5007
 - Actual Budget (if running): http://localhost:5006
 
@@ -363,6 +405,40 @@ ACTUAL_ACCOUNT_ID=your-account-id
 | `actual_api_key` | API key for authentication | - |
 | `actual_budget_sync_id` | Budget sync ID | - |
 | `actual_account_id` | Account ID for transactions | - |
+
+#### API Settings
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `api_enabled` | Enable the invoice API (`POST /api/invoices`) | `false` |
+| `api_key` | Key callers must send in the `X-API-Key` header. Required when the API is enabled | - |
+| `api_port` | Port of the invoice API. `8080` is reserved for health checks | `8081` |
+
+To turn on the API in Home Assistant:
+
+1. Generate a key, for example with `openssl rand -hex 32`.
+2. In **Settings → Add-ons → Mail Hawk → Configuration**, switch on `api_enabled`, paste the key into `api_key` and,
+   if 8081 is taken on your host, change `api_port`.
+3. Save and restart the add-on.
+
+The add-on uses the host network, so the API is at `http://<home-assistant-host>:<api_port>/api/invoices`. Health
+checks stay on port 8080 (`/q/health/*`), where the add-on watchdog expects them. For example,
+to call it from a Home Assistant automation, keep the key in `secrets.yaml` and add a `rest_command`:
+
+```yaml
+# secrets.yaml
+mail_hawk_api_key: "X-API-Key value"
+
+# configuration.yaml
+rest_command:
+  mail_hawk_invoice:
+    url: "http://localhost:8081/api/invoices"
+    method: POST
+    headers:
+      X-API-Key: !secret mail_hawk_api_key
+    content_type: "application/json"
+    payload: '{"date": "{{ date }}", "entityName": "{{ entity_name }}", "raw": "{{ raw }}"}'
+```
 
 ### Gmail Setup
 

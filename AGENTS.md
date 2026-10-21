@@ -36,6 +36,11 @@ docker build -t mail-hawk-java .
 
 ```
 src/main/java/com/amfalmeida/mailhawk/
+├── api/               # REST endpoints
+│   ├── ApiKeyFilter.java        # Checks X-API-Key on @ApiKeyRequired resources (403 unless api-enabled + api-key)
+│   ├── ApiKeyRequired.java      # Name binding for ApiKeyFilter
+│   ├── InvoiceRequest.java      # JSON body: date, entityName, raw QR string
+│   └── InvoiceResource.java     # POST /api/invoices: parse raw QR and store it (needs app.api-enabled + app.api-key)
 ├── client/            # REST clients
 │   ├── ActualBudgetClient.java  # Actual Budget HTTP API client
 │   ├── JsonLoggingFilter.java   # JSON logging/serialization filter
@@ -52,6 +57,7 @@ src/main/java/com/amfalmeida/mailhawk/
 │       ├── Invoice.java         # Invoice with InvoiceContent
 │       ├── InvoiceContent.java  # Invoice data (renamed from QrCodeContent)
 │       ├── InvoiceType.java     # Invoice type configuration
+│       ├── InvoiceResult.java   # Outcome of InvoiceProcessor.storeInvoice (API response)
 │       ├── RecurrentBill.java   # Recurrent bill model
 │       └── SheetsResult.java
 ├── service/           # Business services
@@ -233,7 +239,7 @@ InvoiceContent content = InvoiceContent.builder()
 ## Docker
 
 Full stack with docker-compose.yml includes:
-- mail-hawk (port 8080)
+- mail-hawk (port 8080: health, port 8081: invoice API)
 - actual-http-api (port 5007)
 - actual-budget (port 5006)
 

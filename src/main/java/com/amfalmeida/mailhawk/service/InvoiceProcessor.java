@@ -7,6 +7,7 @@ import com.amfalmeida.mailhawk.config.AppConfig;
 import com.amfalmeida.mailhawk.config.MailConfig;
 import com.amfalmeida.mailhawk.email.model.Invoice;
 import com.amfalmeida.mailhawk.email.model.InvoiceContent;
+import com.amfalmeida.mailhawk.email.model.InvoiceResult;
 import com.amfalmeida.mailhawk.email.model.InvoiceType;
 import com.amfalmeida.mailhawk.email.model.SheetsResult;
 
@@ -69,30 +70,55 @@ public final class InvoiceProcessor {
 
                 log.debug("Parsed QR code: {}", invoiceContent);
 
-                if (processedInvoiceCache.isProcessed(invoiceContent.getRaw())) {
-                    log.info("Invoice already processed: {}", invoiceContent.getInvoiceId());
-                    continue;
-                }
-
                 invoice.setInvoiceContent(invoiceContent);
-
-                final InvoiceType invoiceType = determineInvoiceType(invoice, invoiceContent);
-                invoice.setInvoiceType(invoiceType);
-
-                final var result = sheetsService.addInvoice(invoice);
-                log.info("Sheet operation result: {} - {}", result.status(), result.message());
-
-                if (result.status() == SheetsResult.Status.APPENDED ||
-                    result.status() == SheetsResult.Status.ALREADY_EXISTS) {
-
-                    processedInvoiceCache.markProcessed(invoiceContent.getRaw());
-
-                    actualBudgetService.importInvoices(List.of(invoice));
-                }
+                storeInvoice(invoice);
             }
         } finally {
             cleanupFile(invoice.getFilePath());
         }
+    }
+
+    /**
+     * Stores an invoice whose {@link InvoiceContent} is already known: skips it if already processed, resolves
+     * the {@link InvoiceType}, appends it to Sheets and, only if that didn't fail, marks it processed and imports
+     * it into Actual Budget.
+     */
+    public InvoiceResult storeInvoice(final Invoice invoice) {
+        return storeInvoice(invoice, null);
+    }
+
+    /**
+     * Same as {@link #storeInvoice(Invoice)}, but a non-blank {@code entityName} replaces the name of the resolved
+     * {@link InvoiceType} (the entity column in Sheets and the Actual Budget payee). The type itself is still
+     * resolved from the issuer NIF, then the sender email, then {@code app.default-invoice-type}.
+     */
+    public InvoiceResult storeInvoice(final Invoice invoice, final String entityName) {
+        final InvoiceContent invoiceContent = invoice.getInvoiceContent();
+
+        if (processedInvoiceCache.isProcessed(invoiceContent.getRaw())) {
+            log.info("Invoice already processed: {}", invoiceContent.getInvoiceId());
+            return InvoiceResult.of(invoiceContent, null,
+                InvoiceResult.Status.ALREADY_PROCESSED, "Invoice already processed");
+        }
+
+        final InvoiceType resolvedType = determineInvoiceType(invoice, invoiceContent);
+        final InvoiceType invoiceType = entityName == null || entityName.isBlank()
+            ? resolvedType
+            : new InvoiceType(resolvedType.type(), resolvedType.fromEmail(), entityName.trim(), resolvedType.nif());
+        invoice.setInvoiceType(invoiceType);
+
+        final var result = sheetsService.addInvoice(invoice);
+        log.info("Sheet operation result: {} - {}", result.status(), result.message());
+
+        if (result.status() == SheetsResult.Status.APPENDED ||
+            result.status() == SheetsResult.Status.ALREADY_EXISTS) {
+
+            processedInvoiceCache.markProcessed(invoiceContent.getRaw());
+
+            actualBudgetService.importInvoices(List.of(invoice));
+        }
+        return InvoiceResult.of(invoiceContent, invoiceType.type(),
+            InvoiceResult.Status.valueOf(result.status().name()), result.message());
     }
 
     private InvoiceType determineInvoiceType(final Invoice invoice, final InvoiceContent invoiceContent) {

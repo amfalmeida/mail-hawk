@@ -20,6 +20,6 @@ WORKDIR /app
 COPY --from=builder /app/target/quarkus-app/ /app/
 COPY run.sh ./
 
-EXPOSE 8080
+EXPOSE 8080 8081
 
 CMD ["bash", "run.sh"]

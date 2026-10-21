@@ -28,4 +28,16 @@ public interface AppConfig {
 
     @WithDefault("1")
     int configCacheHours();
+
+    /** Enables the REST API ({@code /api/*}). */
+    @WithDefault("false")
+    boolean apiEnabled();
+
+    /** Port of the REST API (main HTTP server); health checks stay on the management port 8080. */
+    @WithDefault("8081")
+    int apiPort();
+
+    /** Key required in the {@code X-API-Key} header of the REST API; requests are refused while blank. */
+    @WithDefault("")
+    String apiKey();
 }

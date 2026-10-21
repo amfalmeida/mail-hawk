@@ -1,5 +1,5 @@
 name: "Mail Hawk"
-version: "2.3.0"
+version: "2.4.0"
 url: "https://github.com/amfalmeida/mail-hawk"
 slug: "mail_hawk"
 image: ghcr.io/amfalmeida/mail-hawk
@@ -13,8 +13,10 @@ boot: auto
 startup: application
 ports:
   8080/tcp: 8080
+  8081/tcp: 8081
 ports_description:
   8080/tcp: "Health check endpoint"
+  8081/tcp: "Invoice API (default api_port)"
 host_network: true
 watchdog: http://[HOST]:[PORT:8080]/q/health/live
 options:
@@ -41,6 +43,9 @@ options:
   processed_invoice_cache_hours: 24
   last_checked_cache_hours: 24
   config_cache_hours: 1
+  api_enabled: false
+  api_key: ""
+  api_port: 8081
   actual_enabled: false
   actual_url: ""
   actual_api_key: ""
@@ -70,6 +75,9 @@ schema:
   processed_invoice_cache_hours: int
   last_checked_cache_hours: int
   config_cache_hours: int
+  api_enabled: bool
+  api_key: password
+  api_port: port
   actual_enabled: bool
   actual_url: str
   actual_api_key: password
