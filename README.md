@@ -209,7 +209,7 @@ make setup             # Create .env from .env.example
 | `ACTUAL_URL` | Actual Budget HTTP API URL | - |
 | `ACTUAL_API_KEY` | API key for authentication | - |
 | `ACTUAL_BUDGET_SYNC_ID` | Budget sync ID | - |
-| `ACTUAL_ACCOUNT_ID` | Account ID for transactions | - |
+| `ACTUAL_ACCOUNT_ID` | Account ID for transactions. Click the account in Actual Budget and copy the ID from the URL (`/accounts/<id>`) | - |
 
 ### Invoice API
 
@@ -312,6 +312,9 @@ Mail Hawk can automatically import invoice transactions into [Actual Budget](htt
 2. **API Key** - Generate an API key from the Actual Budget HTTP API settings.
 
 3. **Budget and Account IDs** - Get the sync ID and account ID from your Actual Budget instance.
+   - **Account ID**: in Actual Budget, click the account in the sidebar. The ID is the last part of the URL, for
+     example `https://actual.example.com/accounts/1b2c3d4e-5f60-7182-93a4-b5c6d7e8f901` →
+     `1b2c3d4e-5f60-7182-93a4-b5c6d7e8f901`.
 
 ### How It Works
 
@@ -341,7 +344,7 @@ ACTUAL_API_KEY=your-api-key
 # Budget sync ID (from Actual Budget)
 ACTUAL_BUDGET_SYNC_ID=your-budget-sync-id
 
-# Account ID for transactions
+# Account ID for transactions: click the account in Actual Budget, copy the ID from the URL (/accounts/<id>)
 ACTUAL_ACCOUNT_ID=your-account-id
 ```
 
@@ -406,7 +409,7 @@ ACTUAL_ACCOUNT_ID=your-account-id
 | `actual_url` | Actual Budget HTTP API URL | - |
 | `actual_api_key` | API key for authentication | - |
 | `actual_budget_sync_id` | Budget sync ID | - |
-| `actual_account_id` | Account ID for transactions | - |
+| `actual_account_id` | Account ID for transactions. Click the account in Actual Budget and copy the ID from the URL (`/accounts/<id>`) | - |
 
 #### API Settings
 
