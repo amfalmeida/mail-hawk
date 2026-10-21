@@ -45,8 +45,8 @@ The app runs three independent `@Scheduled` jobs, all with `concurrentExecution 
    fail. Actual's `imported_id` is the ATCUD, or the raw QR string when the ATCUD is missing or `"0"`.
 
 **`InvoiceResource`** (`POST /api/invoices`, package `api`) is the REST entry point. It takes JSON (`InvoiceRequest`:
-`date`, `entityName`, `raw`), parses `raw` with `QrCodeParser.parseQrCodeString` and calls
-`InvoiceProcessor.storeInvoice(invoice, entityName)`. A non-blank `entityName` replaces the resolved type's name. The
+`date`, `entityName`, `description`, `raw`), parses `raw` with `QrCodeParser.parseQrCodeString` and calls
+`InvoiceProcessor.storeInvoice(invoice, entityName)`. `description` becomes the invoice `subject`. A non-blank `entityName` replaces the resolved type's name. The
 request `date` is the invoice's `date`, and the invoice date when the QR has no `F` field. The API key (`X-API-Key`
 header) is checked by `ApiKeyFilter`, a `ContainerRequestFilter` bound through the `@ApiKeyRequired` name binding.
 Put that annotation on any new API resource. Endpoints answer 403 until `app.api-enabled` is true and `app.api-key` is set. The filter is

@@ -67,7 +67,7 @@ public final class InvoiceResource {
 
             final Invoice invoice = Invoice.builder()
                 .id(id)
-                .subject("")
+                .subject(request.description() != null ? request.description().trim() : "")
                 .fromAddress("")
                 .fromName(request.entityName() != null ? request.entityName().trim() : "")
                 .toAddress("")

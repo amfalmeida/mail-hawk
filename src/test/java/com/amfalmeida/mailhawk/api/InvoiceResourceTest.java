@@ -42,7 +42,7 @@ class InvoiceResourceTest {
     void rejectsMissingFieldsAndInvalidRaw() {
         assertEquals(400, resource.create(null).getStatus());
         assertEquals(400, resource.create(request(" ")).getStatus());
-        assertEquals(400, resource.create(new InvoiceRequest(null, "Water Co", RAW)).getStatus());
+        assertEquals(400, resource.create(new InvoiceRequest(null, "Water Co", "Fatura", RAW)).getStatus());
         assertEquals(400, resource.create(request("not a qr code")).getStatus());
         assertEquals(400, resource.create(request("A:123456789*O:12.30")).getStatus());
         verify(invoiceProcessor, never()).storeInvoice(any(), any());
@@ -67,6 +67,7 @@ class InvoiceResourceTest {
         assertEquals(RAW, content.getRaw());
         assertEquals(DATE, invoice.getDate());
         assertEquals("Water Co", invoice.getFromName());
+        assertEquals("Fatura FT 2026/123", invoice.getSubject());
         assertTrue(invoice.getId().startsWith("api-"));
     }
 
@@ -77,6 +78,15 @@ class InvoiceResourceTest {
         resource.create(request("A:123456789*G:FT 1/1*O:5.00"));
 
         assertEquals("2026-10-02", captureInvoice().getInvoiceContent().getInvoiceDate());
+    }
+
+    @Test
+    void descriptionIsOptional() {
+        when(invoiceProcessor.storeInvoice(any(), anyString())).thenReturn(result(InvoiceResult.Status.APPENDED));
+
+        resource.create(new InvoiceRequest(DATE, "Water Co", null, RAW));
+
+        assertEquals("", captureInvoice().getSubject());
     }
 
     @Test
@@ -100,7 +110,7 @@ class InvoiceResourceTest {
     }
 
     private static InvoiceRequest request(final String raw) {
-        return new InvoiceRequest(DATE, "Water Co", raw);
+        return new InvoiceRequest(DATE, "Water Co", "Fatura FT 2026/123", raw);
     }
 
     private static InvoiceResult result(final InvoiceResult.Status status) {

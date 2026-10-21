@@ -39,7 +39,7 @@ src/main/java/com/amfalmeida/mailhawk/
 ├── api/               # REST endpoints
 │   ├── ApiKeyFilter.java        # Checks X-API-Key on @ApiKeyRequired resources (403 unless api-enabled + api-key)
 │   ├── ApiKeyRequired.java      # Name binding for ApiKeyFilter
-│   ├── InvoiceRequest.java      # JSON body: date, entityName, raw QR string
+│   ├── InvoiceRequest.java      # JSON body: date, entityName, description, raw QR string
 │   └── InvoiceResource.java     # POST /api/invoices: parse raw QR and store it (needs app.api-enabled + app.api-key)
 ├── client/            # REST clients
 │   ├── ActualBudgetClient.java  # Actual Budget HTTP API client

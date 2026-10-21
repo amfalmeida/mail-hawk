@@ -226,6 +226,7 @@ curl -H "X-API-Key: $APP_API_KEY" -H "Content-Type: application/json" \
   http://localhost:8081/api/invoices -d '{
     "date": "2026-10-01",
     "entityName": "Águas do Porto",
+    "description": "Fatura FT 2026/123",
     "raw": "A:123456789*B:999999990*C:PT*D:FT*E:N*F:20261001*G:FT 2026/123*H:ABCD1234-123*I1:PT*I7:10.00*I8:2.30*N:2.30*O:12.30*Q:abcd*R:1234"
   }'
 ```
@@ -234,6 +235,7 @@ curl -H "X-API-Key: $APP_API_KEY" -H "Content-Type: application/json" \
 |-------|-------------|----------|
 | `date` | Invoice date (`yyyy-MM-dd`). Stored in the date column, and used as the invoice date if the QR code has no `F` field | yes |
 | `entityName` | Entity name. Stored in the entity column and used as the Actual Budget payee. When empty, the name from the `config` tab is used | no |
+| `description` | Free-text description, stored in the Sheets subject column (where email invoices keep the subject) | no |
 | `raw` | AT QR code string. Must contain at least `A` (issuer NIF) and `G` (invoice ID) | yes |
 
 The invoice type still comes from the issuer NIF in the `config` tab, falling back to `APP_DEFAULT_INVOICE_TYPE`.
@@ -437,7 +439,7 @@ rest_command:
     headers:
       X-API-Key: !secret mail_hawk_api_key
     content_type: "application/json"
-    payload: '{"date": "{{ date }}", "entityName": "{{ entity_name }}", "raw": "{{ raw }}"}'
+    payload: '{"date": "{{ date }}", "entityName": "{{ entity_name }}", "description": "{{ description }}", "raw": "{{ raw }}"}'
 ```
 
 ### Gmail Setup
