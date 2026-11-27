@@ -6,55 +6,58 @@ on:
   workflow_dispatch:   # Allows manual trigger from GitHub Actions tab
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 jobs:
   auto-merge:
     name: Check, update, and merge passing Dependabot PRs
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
+      - name: Check merge token
+        env:
+          MERGE_TOKEN: ${{ secrets.DEPENDABOT_MERGE_TOKEN }}
+        run: |
+          if [ -z "$MERGE_TOKEN" ]; then
+            echo "::error::Secret DEPENDABOT_MERGE_TOKEN is not set (fine-grained PAT of an admin of this repo)"
+            exit 1
+          fi
 
       - name: Process open Dependabot PRs
+        # A PAT, not GITHUB_TOKEN: pushes made with GITHUB_TOKEN don't trigger CI, and the merge needs the
+        # admin bypass of the main ruleset (which requires a code-owner review).
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.DEPENDABOT_MERGE_TOKEN }}
         run: |
           set -euo pipefail
 
           echo "Fetching open Dependabot PRs..."
           prs=$(gh pr list --author "dependabot[bot]" --state open --json number,url)
-          
+
           if [ -z "$prs" ] || [ "$prs" = "[]" ]; then
             echo "No open Dependabot PRs found."
             exit 0
           fi
 
-          echo "Found open Dependabot PRs."
-
           echo "$prs" | jq -c '.[]' | while read -r pr; do
             pr_number=$(echo "$pr" | jq -r '.number')
             pr_url=$(echo "$pr" | jq -r '.url')
-            
+
             echo "--------------------------------------------------"
             echo "Processing PR #$pr_number ($pr_url)..."
-            
+
             # Check CI status of the PR
             checks_json=$(gh pr checks "$pr_url" --json bucket 2>/dev/null || echo "[]")
-            
-            # Verify if all checks passed (at least one check must exist and all must be 'pass')
+
+            # All checks must pass, and there must be at least one
             all_passed=$(echo "$checks_json" | jq '[.[] | .bucket] | length > 0 and all(. == "pass")' 2>/dev/null || echo "false")
-            
+
             if [ "$all_passed" = "true" ]; then
-              echo "All CI checks passed for PR #$pr_number. Merging now..."
-              if gh pr merge --squash "$pr_url"; then
-                echo "Successfully merged PR #$pr_number"
-              else
-                echo "Failed to merge PR #$pr_number (may require reviews or manual intervention)"
-              fi
+              echo "All CI checks passed for PR #$pr_number. Merging with admin bypass..."
+              gh pr merge --squash --admin "$pr_url"
+              echo "Merged PR #$pr_number"
             else
-              echo "CI checks not passing yet (or no checks found) for PR #$pr_number. Updating branch with latest main..."
+              echo "CI not passing yet for PR #$pr_number. Updating branch with latest main..."
               gh pr update-branch "$pr_url" || echo "Branch update not needed or failed for #$pr_number"
             fi
           done
