@@ -40,7 +40,8 @@ src/main/java/com/amfalmeida/mailhawk/
 │   ├── ApiKeyFilter.java        # Checks X-API-Key on @ApiKeyRequired resources (403 unless api-enabled + api-key)
 │   ├── ApiKeyRequired.java      # Name binding for ApiKeyFilter
 │   ├── InvoiceRequest.java      # JSON body: date, entityName, description, raw QR string
-│   └── InvoiceResource.java     # POST /api/invoices: parse raw QR and store it (needs app.api-enabled + app.api-key)
+│   ├── FileInvoiceRequest.java  # JSON body: date, entityName, description, base64 PDF or image
+│   └── InvoiceResource.java     # POST /api/invoices (raw QR) and /file (base64 PDF or image): parse and store (needs app.api-enabled + app.api-key)
 ├── client/            # REST clients
 │   ├── ActualBudgetClient.java  # Actual Budget HTTP API client
 │   ├── JsonLoggingFilter.java   # JSON logging/serialization filter
@@ -65,6 +66,7 @@ src/main/java/com/amfalmeida/mailhawk/
 │   ├── ApplicationInfo.java     # Startup logging of version from git.properties
 │   ├── SearchTermBuilder.java   # IMAP search term construction
 │   ├── InvoiceProcessor.java    # Invoice processing pipeline
+│   ├── ApiInvoiceService.java   # API use cases: store a raw QR string or every invoice in an uploaded file (throws InvoiceRequestException)
 │   ├── RecurrentBillService.java # Recurrent bill processing (scheduled)
 │   ├── SheetsService.java      # Google Sheets integration + invoice-type config caches
 │   ├── ProcessedInvoiceCache.java # Caffeine cache of processed invoices (24h TTL)
