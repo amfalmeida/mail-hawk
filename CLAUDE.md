@@ -47,7 +47,9 @@ The app runs three independent `@Scheduled` jobs, all with `concurrentExecution 
 **`InvoiceResource`** (`POST /api/invoices`, package `api`) is the REST entry point. It takes JSON (`InvoiceRequest`:
 `date`, `entityName`, `description`, `raw`), parses `raw` with `QrCodeParser.parseQrCodeString` and calls
 `InvoiceProcessor.storeInvoice(invoice, entityName)`. `description` becomes the invoice `subject`. A non-blank `entityName` replaces the resolved type's name. The
-request `date` is the invoice's `date`, and the invoice date when the QR has no `F` field. The API key (`X-API-Key`
+request `date` is the invoice's `date`, and the invoice date when the QR has no `F` field. `POST /api/invoices/file` takes `FileInvoiceRequest` (the same fields as
+`InvoiceRequest`, with the base64 file in `file` instead of `raw`; a PDF, PNG, JPEG, GIF or BMP detected from its bytes), decodes it, extracts QR codes with `QrCodeParser.getQrCodes` (same as email, `mail.pdf-passwords` included) and stores each one.
+The API key (`X-API-Key`
 header) is checked by `ApiKeyFilter`, a `ContainerRequestFilter` bound through the `@ApiKeyRequired` name binding.
 Put that annotation on any new API resource. Endpoints answer 403 until `app.api-enabled` is true and `app.api-key` is set. The filter is
 `@ApplicationScoped` so it is built lazily: JAX-RS providers are otherwise created during static init, when
@@ -81,7 +83,7 @@ Persistence layers:
   `app.processed-invoice-cache-hours` (default 24), and the size limit is `app.processed-invoice-cache-size`.
   Recurrent bills use the key `RECURRENT:<REC-id>`. The cache is memory-only, so after expiry or a restart the
   Sheets duplicate check is the only safeguard.
-- There is no database and no web UI. Only `/q/health/*` (port 8080) and `POST /api/invoices` (`app.api-port`) are served.
+- There is no database and no web UI. Only `/q/health/*` (port 8080) and `POST /api/invoices` and `POST /api/invoices/file` (`app.api-port`) are served.
 
 ## Deployment
 

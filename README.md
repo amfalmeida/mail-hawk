@@ -238,6 +238,29 @@ curl -H "X-API-Key: $APP_API_KEY" -H "Content-Type: application/json" \
 | `description` | Free-text description, stored in the Sheets subject column (where email invoices keep the subject) | no |
 | `raw` | AT QR code string. Must contain at least `A` (issuer NIF) and `G` (invoice ID) | yes |
 
+`POST /api/invoices/file` takes the same fields as `POST /api/invoices`, except that the invoice data comes from a file
+instead of a QR string. The file goes in `file`, base64-encoded. It can be a PDF, PNG, JPEG, GIF or BMP image, and the
+type is detected from the file content. It is parsed the same way as an email attachment, and every AT QR code in it is
+stored as its own invoice. The response is a list with one result per invoice. Its status is 201 if any invoice was
+appended, 200 if all already existed, 502 if a Sheets write failed (see each result), 400 for a missing date, a missing
+or invalid base64 file, or an unsupported file type, and 422 if no valid AT QR code is found.
+
+| Field | Description | Required |
+|-------|-------------|----------|
+| `date` | Invoice date (`yyyy-MM-dd`). Used as the invoice date if a QR code has no `F` field | yes |
+| `entityName` | Entity name. Same as `POST /api/invoices` | no |
+| `description` | Free-text description, stored as the invoice subject | no |
+| `file` | The PDF or image file, base64-encoded. The JSON body limit applies, so the file must be under about 7 MB | yes |
+
+```bash
+curl -H "X-API-Key: $APP_API_KEY" -H "Content-Type: application/json" \
+  http://localhost:8081/api/invoices/file -d "{
+    \"date\": \"2026-10-01\",
+    \"entityName\": \"Águas do Porto\",
+    \"file\": \"$(base64 -i fatura.png | tr -d '\n')\"
+  }"
+```
+
 The invoice type still comes from the issuer NIF in the `config` tab, falling back to `APP_DEFAULT_INVOICE_TYPE`.
 `raw` is the duplicate-check key, the same as for email invoices.
 
