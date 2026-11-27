@@ -33,16 +33,19 @@ jobs:
           set -euo pipefail
 
           echo "Fetching open Dependabot PRs..."
-          prs=$(gh pr list --author "dependabot[bot]" --state open --json number,url)
+          prs=$(gh pr list --author "dependabot[bot]" --state open --json number,url,title)
 
           if [ -z "$prs" ] || [ "$prs" = "[]" ]; then
             echo "No open Dependabot PRs found."
             exit 0
           fi
 
+          echo "### Merged Dependabot PRs" >> "$GITHUB_STEP_SUMMARY"
+
           echo "$prs" | jq -c '.[]' | while read -r pr; do
             pr_number=$(echo "$pr" | jq -r '.number')
             pr_url=$(echo "$pr" | jq -r '.url')
+            pr_title=$(echo "$pr" | jq -r '.title')
 
             echo "--------------------------------------------------"
             echo "Processing PR #$pr_number ($pr_url)..."
@@ -56,7 +59,8 @@ jobs:
             if [ "$all_passed" = "true" ]; then
               echo "All CI checks passed for PR #$pr_number. Merging with admin bypass..."
               gh pr merge --squash --admin "$pr_url"
-              echo "Merged PR #$pr_number"
+              echo "Merged PR #$pr_number: $pr_title"
+              echo "- #$pr_number $pr_title ([link]($pr_url))" >> "$GITHUB_STEP_SUMMARY"
             else
               echo "CI not passing yet for PR #$pr_number. Updating branch with latest main..."
               gh pr update-branch "$pr_url" || echo "Branch update not needed or failed for #$pr_number"
