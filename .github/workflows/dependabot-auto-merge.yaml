@@ -28,6 +28,7 @@ jobs:
         # admin bypass of the main ruleset (which requires a code-owner review).
         env:
           GH_TOKEN: ${{ secrets.DEPENDABOT_MERGE_TOKEN }}
+          GH_REPO: ${{ github.repository }} # gh needs a repo: this job doesn't check out the code
         run: |
           set -euo pipefail
 
